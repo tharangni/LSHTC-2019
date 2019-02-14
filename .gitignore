@@ -1,3 +1,10 @@
+# user defined ignore
+*.gz
+*.pdf
+*.zip
+*.tar
+*/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

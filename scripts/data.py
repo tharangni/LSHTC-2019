@@ -50,9 +50,9 @@ if __name__ == '__main__':
 	
 	# x, a - contains all the feat:value data
 	# y, b - contains all the labels (per line)
-	x, y = get_data("../train-remapped/train-remapped.csv")
-	a, b = get_data("../test-remapped/test-remapped.csv")
-	hier = read_hier("../hierarchy/hierarchy.txt")
+	x, y = get_data("../lwiki/train-remapped/train-remapped.csv")
+	a, b = get_data("../lwiki/test-remapped/test-remapped.csv")
+	hier = read_hier("../lwiki/hierarchy/hierarchy.txt")
 
 	leaf_labels_y, labels_per_doc_y = label_extractor(y)
 	leaf_labels_b, labels_per_doc_b = label_extractor(b)

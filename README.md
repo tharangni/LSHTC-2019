@@ -1,2 +1,3 @@
 # LSHTC-2019
-Repository for my master thesis on Large Scale Hierarchical Text Classification
+**MSc Artificial Intelligence @ University of Amsterdam**
+Repository for master thesis on Large Scale Hierarchical Text Classification 

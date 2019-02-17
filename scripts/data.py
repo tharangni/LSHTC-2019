@@ -13,11 +13,15 @@ from joblib import Memory
 from collections import OrderedDict
 from sklearn.datasets import load_svmlight_file
 
+from sklearn.linear_model import SGDClassifier
+
+from benchmark import benchmark_clf
+
 logging.basicConfig(level=logging.INFO)
-mem = Memory("../mycache")
+# mem = Memory("../mycache")
 
 
-@mem.cache
+# @mem.cache
 def get_data(filename):
 
 	fname = str(Path(filename))
@@ -27,7 +31,8 @@ def get_data(filename):
 		data = load_svmlight_file(fname, multilabel=True)
 	except:
 		# Required: if the input data isn't in the correct libsvm format
-		outfile = str(Path("{}_remapped{}".format(fe, ex)))
+		outfile = str(Path("{}_small{}".format(fe, ex)))
+		# outfile = str(Path("{}_remapped{}".format(fe, ex)))
 		if not os.path.isfile(outfile):
 			logging.warning("Remapping data to LibSVM format...")
 			f = preprocess_libsvm(fname, outfile)
@@ -46,7 +51,8 @@ def preprocess_libsvm(input_file, output_file):
 
 	file = open(output_file, "w+")
 	with open(input_file, "r") as f:
-		for _, line in enumerate(tqdm(f)):
+		# head = [next(f) for x in range(1000)] # retrieve only `n` docs
+		for i, line in enumerate(tqdm(head)):
 			instance = line.strip().split()
 			labels = instance[0]
 			doc_dict = OrderedDict()
@@ -64,7 +70,7 @@ def preprocess_libsvm(input_file, output_file):
 			for feat, tf in doc_dict.items():
 				temp_string = temp_string + "{}:{} ".format(feat, tf)        
 			file.write("{} {}\n".format(labels, temp_string))
-	file.close()
+		file.close()
 
 	return output_file
 
@@ -97,6 +103,28 @@ def read_hier(filename):
 	return unique_h
 
 
+def stats_describe(x, y, a, b, cat):
+	
+	# Training data stuff
+	leaf_labels_y, labels_per_doc_y = label_extractor(y)
+	
+	# Testing data stuff
+	leaf_labels_b, labels_per_doc_b = label_extractor(b)
+
+	# Hierarchical categories
+	hier = read_hier(cat)
+
+	print("Training data: {} - num documents X num features".format(x.shape))
+	print("Training data: {} - avg num_labels per instance".format(sum(labels_per_doc_y)/len(y)))
+	print("Training data: {} - num leaf labels".format(len(leaf_labels_y)))
+	
+	print("Testing data: {} - num t_documents X num t_features".format(a.shape))
+	print("Testing data: {} - avg num_labels per instance".format(sum(labels_per_doc_b)/len(b)))
+	print("Testing data: {} - num leaf labels".format(len(leaf_labels_b)))
+	
+	print("Hierarchical categories: {} - num class labels".format(len(hier)))
+
+
 if __name__ == '__main__':
 	
 	parser = argparse.ArgumentParser()
@@ -105,30 +133,24 @@ if __name__ == '__main__':
 	parser.add_argument("-tr", "--training", type = str,  help = "enter path of training data")
 	parser.add_argument("-te", "--testing", type = str,  help = "enter path of testing data")
 	parser.add_argument("-cat", "--category", type = str,  help = "enter path of cateogory data")
+	parser.add_argument("-desc", "--describe", type = bool, default = False, help = "bool value to display numbers")
 
 	args = parser.parse_args()
 	print(args)
+	# mem.clear(warn=False)
 
 	# x, a - contains all the feat:value data
 	# y, b - contains all the labels (per line)
-
-	# Training data stuff
-	x, y = get_data(args.training)
-	leaf_labels_y, labels_per_doc_y = label_extractor(y)
-	print("Training data: {} - num documents X num features".format(x.shape))
-	print("Training data: {} - avg num_labels per instance".format(sum(labels_per_doc_y)/len(y)))
-	print("Training data: {} - num leaf labels".format(len(leaf_labels_y)))
-	
-	# Testing data stuff
+	x, y = get_data(args.training)	
 	a, b = get_data(args.testing)
-	leaf_labels_b, labels_per_doc_b = label_extractor(b)
-	print("Testing data: {} - num t_documents X num t_features".format(a.shape))
-	print("Testing data: {} - avg num_labels per instance".format(sum(labels_per_doc_b)/len(b)))
-	print("Testing data: {} - num leaf labels".format(len(leaf_labels_b)))
 	
-	# Hierarchical categories
-	hier = read_hier(args.category)
-	print("Hierarchical categories: {} - num class labels".format(len(hier)))
+	if args.describe:
+		stats_describe(x, y, a, b, args.category)
+	
+	print("Finished loading!")
+
+	clf = SGDClassifier()
+	benchmark_clf(clf, x, y, a, b, args.category)
 
 
 '''

@@ -3,6 +3,7 @@
 *.pdf
 *.zip
 *.tar
+*.txt
 */*
 
 # Byte-compiled / optimized / DLL files

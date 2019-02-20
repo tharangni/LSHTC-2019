@@ -4,6 +4,7 @@
 *.zip
 *.tar
 *.txt
+*.xz
 */*
 
 # Byte-compiled / optimized / DLL files

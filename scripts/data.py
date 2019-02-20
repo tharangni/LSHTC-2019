@@ -2,6 +2,7 @@
 # https://www.kaggle.com/c/lshtc/discussion/6911#38233 - preprocessing: multilabels comma should not have spaces
 # https://www.kaggle.com/c/lshtc/discussion/14048 - dataset statistics
 ## currently reading LWIKI dataset 
+## python data.py -tr ..\swiki\data\train.txt -te ..\swiki\data\test.txt -cat ..\swiki\data\cat_hier.txt
 
 import os
 import logging
@@ -16,6 +17,7 @@ from sklearn.datasets import load_svmlight_file
 from sklearn.linear_model import SGDClassifier
 
 from benchmark import benchmark_clf
+from rr_lr import rr_reader
 
 logging.basicConfig(level=logging.INFO)
 # mem = Memory("../mycache")
@@ -51,8 +53,8 @@ def preprocess_libsvm(input_file, output_file):
 
 	file = open(output_file, "w+")
 	with open(input_file, "r") as f:
-		# head = [next(f) for x in range(1000)] # retrieve only `n` docs
-		for i, line in enumerate(tqdm(head)):
+		head = [next(f) for x in range(500)] # retrieve only `n` docs
+		for i, line in enumerate(tqdm(head)): # change to f/head depending on your needs
 			instance = line.strip().split()
 			labels = instance[0]
 			doc_dict = OrderedDict()
@@ -141,17 +143,17 @@ if __name__ == '__main__':
 
 	# x, a - contains all the feat:value data
 	# y, b - contains all the labels (per line)
-	x, y = get_data(args.training)	
-	a, b = get_data(args.testing)
+	train_data, train_labels = get_data(args.training)	
+	# test_data, test_labels = get_data(args.testing)
 	
 	if args.describe:
 		stats_describe(x, y, a, b, args.category)
 	
 	print("Finished loading!")
 
-	clf = SGDClassifier()
-	benchmark_clf(clf, x, y, a, b, args.category)
-
+	# clf = SGDClassifier()
+	# benchmark_clf(clf, train_data, train_labels, test_data, test_labels, args.category)
+	rr_reader(train_data, train_labels)
 
 '''
 OUTPUT: LWIKI

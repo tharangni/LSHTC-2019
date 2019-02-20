@@ -151,9 +151,8 @@ if __name__ == '__main__':
 	
 	print("Finished loading!")
 
-	# clf = SGDClassifier()
-	# benchmark_clf(clf, train_data, train_labels, test_data, test_labels, args.category)
-	rr_reader(train_data, train_labels)
+	clf = SGDClassifier()
+	benchmark_clf(clf, train_data, train_labels, test_data, test_labels, args.category)
 
 '''
 OUTPUT: LWIKI

@@ -5,6 +5,7 @@
 *.tar
 *.txt
 *.xz
+*.whl
 */*
 
 # Byte-compiled / optimized / DLL files

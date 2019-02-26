@@ -6,6 +6,7 @@
 *.txt
 *.xz
 *.whl
+*.png
 */*
 
 # Byte-compiled / optimized / DLL files

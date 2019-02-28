@@ -107,7 +107,7 @@ def generate_label_vector(all_labels):
 # 	if key not in one_hot_label_vector:
 # 		one_hot_label_vector[key] = one_hot_vec[value]
 
-	
+
 
 # !run this only once - this is just to create a smaller train-valid set
 # x, y = train_valid_split("swiki/data/train_remapped.txt")

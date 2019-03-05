@@ -7,8 +7,8 @@ import igraph as ig
 
 from tqdm import tqdm 
 from pathlib import Path
-from random import sample
 from joblib import Memory
+from random import sample
 
 from sklearn.decomposition import TruncatedSVD
 from sklearn.datasets import load_svmlight_file

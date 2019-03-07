@@ -10,10 +10,13 @@ from pathlib import Path
 from joblib import Memory
 from random import sample
 
+from collections import Counter, OrderedDict
 from sklearn.decomposition import TruncatedSVD
 from sklearn.datasets import load_svmlight_file
 
 
+mem = Memory("./../../mycache_getdata")
+@mem.cache
 def lower_dim(file_path, reduce, n_components):
 
 	data = get_data(file_path)
@@ -27,7 +30,16 @@ def lower_dim(file_path, reduce, n_components):
 		min_, sec_ = divmod(elapsed_time, 60)
 		logging.info("Elapsed time: {}min {:.2f}sec".format(min_, sec_))
 
-	return new_data, data[1]
+	new_doc, new_labels = [], []
+	
+	for i, label_tuple in enumerate(data[1]):
+		for each_label in label_tuple:
+			new_doc.append(new_data[i])
+			new_labels.append(int(each_label))
+
+	new_doc = np.stack(new_doc, axis=0)
+
+	return new_doc, new_labels
 
 
 mem = Memory("./../../mycache_getdata")
@@ -63,7 +75,9 @@ def rr_reader(filename):
 
 	num_entries = 200000
 	df = pd.DataFrame()
-	
+	feat_dict = {}
+	freq = 5
+
 	with open(filename, "r") as f:
 #         head = [next(f) for x in range(num_entries)] # retrieve only `n` docs
 		for i, line in enumerate(tqdm(f)): # change to f/head depending on your needs
@@ -79,13 +93,25 @@ def rr_reader(filename):
 
 			for key in sorted(temp_dict.keys()):
 				doc_dict[key] = temp_dict[key]
-				
+			
+			for k, v in doc_dict.items():
+				if k in feat_dict:
+					feat_dict[k] += v
+				else:
+					feat_dict[k] = v
+
 			temp_df = pd.DataFrame(data = [ labels, doc_dict ]).T
 			df = df.append(temp_df, ignore_index=True)
 	
 	df.columns = ["labels", "feat_tf"]
 	df["labels"] = df["labels"].apply( lambda x: list(map(int, x.split(",")))  )
-	return df
+
+	reduced_corpus = {}
+	for k, v in feat_dict.items():
+	    if v > freq:
+	        reduced_corpus[k] = v
+
+	return df, feat_dict, reduced_corpus
 
 # !run this only once - this is just to create a smaller train-valid set
 # x, y = train_valid_split("swiki/data/train_remapped.txt")

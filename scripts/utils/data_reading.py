@@ -3,7 +3,6 @@ import time
 import logging
 import numpy as np
 import pandas as pd
-import igraph as ig
 
 from tqdm import tqdm 
 from pathlib import Path

@@ -55,7 +55,7 @@ def generate_wn(N_all_nodes, n):
 	return wn_tensors
 
 
-def generate_binary_yin(N_all_nodes):
+def generate_binary_yin(N_all_nodes, device):
 	'''
 	Alternate method to generate y_in values. If a node n belongs to an 
 	instance i, it accesses the respective 16-bit binary {-1, +1} representation 
@@ -69,6 +69,6 @@ def generate_binary_yin(N_all_nodes):
 		all_16.append(list_16)
 
 	t_16 = list2tensor(all_16)
-	y_in_dash = torch.from_numpy(np.where(t_16.numpy() > 0, 1, -1)).float()
+	y_in_dash = torch.as_tensor(np.where(t_16.numpy() > 0, 1.0, -1.0), device = device, dtype = torch.float32)
 	
 	return y_in_dash

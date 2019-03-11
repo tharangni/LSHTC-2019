@@ -1,5 +1,6 @@
 import os
 import time
+import torch
 import logging
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ def lower_dim(file_path, reduce, n_components):
 			new_labels.append(int(each_label))
 
 	new_doc = np.stack(new_doc, axis=0)
-
+	
 	return new_doc, new_labels
 
 
@@ -65,7 +66,7 @@ def get_data(filename):
 	return data[0], data[1]
 
 
-mem = Memory("./../../mycache")
+mem = Memory("./mycache")
 @mem.cache
 def rr_reader(filename):
 	'''
@@ -107,8 +108,8 @@ def rr_reader(filename):
 
 	reduced_corpus = {}
 	for k, v in feat_dict.items():
-	    if v > freq:
-	        reduced_corpus[k] = v
+		if v > freq:
+			reduced_corpus[k] = v
 
 	return df, feat_dict, reduced_corpus
 

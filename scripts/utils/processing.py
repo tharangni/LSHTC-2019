@@ -14,7 +14,7 @@ from sklearn.datasets import load_svmlight_file
 # # N and labels_dict have to be present globally! (list of all the labels)
 # # labels_dict because I will keep accessing it for each document
 # order_label_mapping = generate_label_vector(N)
-def generate_order_mapping(N_all_nodes):
+def generate_order_mapping(N_all_nodes, rev = False):
 
 	order_mapping = {}
 	sorted_nodes = sorted(N_all_nodes)
@@ -22,6 +22,8 @@ def generate_order_mapping(N_all_nodes):
 	for i, each_node in enumerate(sorted_nodes):
 		if each_node not in order_mapping:
 			order_mapping[each_node] = i+1
+	if rev:
+		order_mapping = {value:key for key, value in order_mapping.items()}
 
 	return order_mapping
 

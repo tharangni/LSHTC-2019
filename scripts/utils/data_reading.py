@@ -137,7 +137,7 @@ def train_valid_split(input_file):
 	
 	valid_samples = sample(range(len(line)), valid_size)
 	
-	all_samples = list(range(len(train_data)))
+	all_samples = list(range(len(line)))
 	train_samples = list(set(all_samples).difference(set(valid_samples)))
 			
 	print(len(valid_samples), len(train_samples))

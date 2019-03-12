@@ -82,8 +82,9 @@ def hierarchy2graph(p2c_table, node2id):
 	g = ig.Graph(n=len(node2id), edges=edges, directed=True, vertex_attrs={"name": vertices})
 	return g
 
-
-def hierarchy_vectors(graph_obj, ix2node, p2c, n, device):
+mem = Memory("./../../mycache")
+@mem.cache
+def hierarchy_vectors(graph_obj, ix2node, p2c, c2p, n, device, parent = True):
 	
 	node2vec = {}
 	
@@ -94,7 +95,7 @@ def hierarchy_vectors(graph_obj, ix2node, p2c, n, device):
 	# 2. generate random vector for root
 	root_vector = np.random.normal(loc = 1, scale = 0.1, size = n)
 	
-	for parent, children in p2c.items():
+	for parent, children in tqdm(p2c.items()):
 		if parent == root_node:
 			node2vec[parent] = torch.as_tensor(root_vector, device = device, dtype = torch.float32)
 
@@ -105,5 +106,16 @@ def hierarchy_vectors(graph_obj, ix2node, p2c, n, device):
 			if child not in node2vec:
 				curr_vector = node2vec[parent] + rand
 				node2vec[child] = torch.as_tensor(curr_vector, device = device, dtype = torch.float32)
-				
-	return node2vec
+	
+	res = node2vec
+
+	if parent:
+		w_pi = {}
+
+		for node, vector in tqdm(node2vec.items()):
+			if node not in w_pi and node in c2p.keys():
+				node_parent = c2p[node][0]
+				w_pi[node] = node2vec[node_parent]
+                
+		res = node2vec, w_pi
+	return res

@@ -13,6 +13,16 @@ from joblib import Memory
 from collections import Counter, OrderedDict
 
 def lookup_table(filename, subset):
+
+	'''
+	filename: <str> path to category file
+	subset: <bool> or <int> False or an int representing the number of labels to sample from
+	ASSUMPTION:
+	category format in the file is:
+	12345 23456
+	12345 34567
+	the first number represents parent and the number following it represents child
+	'''
 	
 	p2c_table = {}
 	c2p_table = {}
@@ -61,7 +71,7 @@ def lookup_table(filename, subset):
 				i+=1
 			else:
 				c_id = node2id[child_node[0]]
-
+				
 	pi_parents = set(p2c_table.keys())        
 	T_leaves = (c2p_table.keys() - p2c_table.keys()) 
 	N_all_nodes = pi_parents.union(T_leaves)
@@ -70,7 +80,7 @@ def lookup_table(filename, subset):
 
 
 
-def hierarchy2graph(p2c_table, node2id):
+def hierarchy2graph(p2c_table, node2id, directed):
 
 	edges = []
 	for parent, children in p2c_table.items():
@@ -79,43 +89,5 @@ def hierarchy2graph(p2c_table, node2id):
 			c_id = node2id[child]
 			edges.append((p_id, c_id))
 	vertices = [k for k, v in node2id.items()]
-	g = ig.Graph(n=len(node2id), edges=edges, directed=True, vertex_attrs={"name": vertices})
+	g = ig.Graph(n=len(node2id), edges=edges, directed=directed, vertex_attrs={"name": vertices})
 	return g
-
-mem = Memory("./../../mycache")
-@mem.cache
-def hierarchy_vectors(graph_obj, ix2node, p2c, c2p, n, device, parent = True):
-	
-	node2vec = {}
-	
-	# 1. find the root node. in degree = 0
-	in_degree = graph_obj.degree(type = "in")
-	root_node = ix2node[np.where(np.array(in_degree)==0)[0][0]]
-	
-	# 2. generate random vector for root
-	root_vector = np.random.normal(loc = 1, scale = 0.1, size = n)
-	
-	for parent, children in tqdm(p2c.items()):
-		if parent == root_node:
-			node2vec[parent] = torch.as_tensor(root_vector, device = device, dtype = torch.float32)
-
-		# 3. children: find immediate neighbours of root (1 level down)
-		# 4. generate random vectors for each neighbour at uniform randomness
-		for child in children:
-			rand = random.uniform(0.0001, 0.0005)
-			if child not in node2vec:
-				curr_vector = node2vec[parent] + rand
-				node2vec[child] = torch.as_tensor(curr_vector, device = device, dtype = torch.float32)
-	
-	res = node2vec
-
-	if parent:
-		w_pi = {}
-
-		for node, vector in tqdm(node2vec.items()):
-			if node not in w_pi and node in c2p.keys():
-				node_parent = c2p[node][0]
-				w_pi[node] = node2vec[node_parent]
-                
-		res = node2vec, w_pi
-	return res

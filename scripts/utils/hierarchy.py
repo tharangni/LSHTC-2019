@@ -37,7 +37,7 @@ def lookup_table(filename, subset):
 			head = [next(f) for x in range(subset)] # retrieve only `n` docs
 		else:
 			raise ValueError("Incorrect subset type. Enter only False (boolean) or int. Encountered {} type.".format(type(subset)))
-		for _, line in enumerate(tqdm(head)):
+		for _, line in enumerate(head):
 			split_line = line.strip().split()
 			parent_node = int(split_line[0])
 			child_node = list(map(int, split_line[1:]))
@@ -71,7 +71,7 @@ def lookup_table(filename, subset):
 				i+=1
 			else:
 				c_id = node2id[child_node[0]]
-				
+
 	pi_parents = set(p2c_table.keys())        
 	T_leaves = (c2p_table.keys() - p2c_table.keys()) 
 	N_all_nodes = pi_parents.union(T_leaves)
@@ -91,3 +91,21 @@ def hierarchy2graph(p2c_table, node2id, directed):
 	vertices = [k for k, v in node2id.items()]
 	g = ig.Graph(n=len(node2id), edges=edges, directed=directed, vertex_attrs={"name": vertices})
 	return g
+
+
+
+def hierarchy_type(c2p_table):
+	#  is this logic correct? (comparing against binary trees)
+	temp = []
+	
+	for vals in list(c2p_table.values()):
+		for x in vals:
+			temp.append(x)
+
+	if(len(temp) == len(list(c2p_table.keys()))):
+		type_ = 'tree'
+	else:
+		type_ = 'graph'
+
+	del temp
+	return type_

@@ -29,7 +29,7 @@ class HierarchyUtils(object):
 
 	def get_depth(self, hist = False):
 		
-		assert bool(self.directed) == True, "Depth can be calculated only for DAG"
+		assert bool(self.directed) == True, "Depth cannot be calculated for undirected graphs"
 
 		if hist:
 			return print(self.hier_obj.path_length_hist())
@@ -91,15 +91,18 @@ class HierarchyUtils(object):
 
 				res = node2vec, w_pi
 
-			# [TODO] need to compute neighbours in case of graphs
+			# compute neighbours (their vectors) in case of graphs
 			elif neighbours and self.hier_type == 'graph':
 				w_neighs = {}
-
+				for node, vec in node2vec.items():
+					neighbours = self.hier_obj.neighbors(self.node2id[node])
+					if node not in w_neighs:
+						w_neighs[node] = [node2vec[self.id2node[neigh_vecs]] for neigh_vecs in neighbours]
 				res = node2vec, w_neighs
 
 		else:
 			res = 0
-			print("this is undirected graph")
+			print("this is undirected graph") 
 
 		return res
 
@@ -111,7 +114,7 @@ if __name__ == '__main__':
 	print(T.hier_type)
 	# print(T.get_depth(True))
 
-	vecs = T.generate_vectors()
+	vecs = T.generate_vectors()	
 	print(len(vecs[0]))
 	print("*"*50)
 	print(len(vecs[1]))

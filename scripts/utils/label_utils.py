@@ -19,16 +19,15 @@ class HierarchyUtils(object):
 	def __init__(self, category_file, subset, directed):
 		super(HierarchyUtils, self).__init__()
 		self.category_file = category_file
-		self.subset = subset
 		self.directed = directed
 		self.parent2child_table, self.child2parent_table, self.node2id, \
-		self.id2node, self.pi_parents, self.T_leaves, self.N_all_nodes = lookup_table(self.category_file, self.subset)
+		self.id2node, self.pi_parents, self.T_leaves, self.N_all_nodes = lookup_table(self.category_file, subset)
 		self.hier_type = hierarchy_type(self.child2parent_table)
 		self.hier_obj = hierarchy2graph(self.parent2child_table, self.node2id, self.directed)
 		
 
 	def get_depth(self, hist = False):
-		
+			
 		assert bool(self.directed) == True, "Depth cannot be calculated for undirected graphs"
 
 		if hist:
@@ -46,6 +45,47 @@ class HierarchyUtils(object):
 		g.vs["label"] = g.vs["name"]
 		return ig.plot(g, layout = layout)
 
+
+	# BFS traversal of a graph 
+	# passing the id of node as an arg
+	def BFS(self, s, n = 16, device = 'cpu'): 
+
+	    # Mark all the vertices as not visited 
+	    visited = [False] * (len(self.N_all_nodes)) 
+	    node2vec = {}
+	    
+	    # Create a queue for BFS 
+	    queue = [] 
+	    
+	    # Mark the source node as  
+	    # visited and enqueue it 
+	    queue.append(s) 
+	    visited[s] = True
+	    
+	    if self.id2node[s] not in node2vec:
+	        root_vector = np.random.normal(loc = 0.8, scale = 0.1, size = n)
+	        node2vec[self.id2node[s]] = torch.as_tensor(root_vector, device = device, dtype = torch.float32)
+
+	    while queue: 
+
+	        # Dequeue a vertex from  
+	        # queue and print it 
+	        s = queue.pop(0) 
+	        # print (self.id2node[s]) 
+
+	        # Get all adjacent vertices of the 
+	        # dequeued vertex s. If a adjacent 
+	        # has not been visited, then mark it 
+	        # visited and enqueue it 
+	        for i in self.hier_obj.neighbors(s): 
+	            if visited[i] == False: 
+	                queue.append(i) 
+	                visited[i] = True
+	                if self.id2node[i] not in node2vec:
+	                    rand = random.uniform(0.0001, 0.0005)
+	                    node2vec[self.id2node[i]] = node2vec[self.id2node[s]] + rand
+	    return node2vec
+
 		
 	def generate_vectors(self, n = 16, device = 'cpu', neighbours = True):
 		
@@ -62,7 +102,7 @@ class HierarchyUtils(object):
 				for e_in in in_degree_nodes:
 					# 2. generate random vector for root
 					if e_in not in node2vec:
-						root_vector = np.random.normal(loc = 1, scale = 0.1, size = n)
+						root_vector = np.random.normal(loc = 0.8, scale = 0.1, size = n)
 						node2vec[e_in] = torch.as_tensor(root_vector, device = device, dtype = torch.float32)
 
 					# 3. children: find immediate neighbours of root (1 level down)
@@ -100,9 +140,22 @@ class HierarchyUtils(object):
 						w_neighs[node] = [node2vec[self.id2node[neigh_vecs]] for neigh_vecs in neighbours]
 				res = node2vec, w_neighs
 
+
 		else:
-			res = 0
-			print("this is undirected graph") 
+			# [TODO]: Raincheck 0.0
+			starting_node = 0 # no reason why. just starting with the 0th node
+			
+			node2vec = self.	BFS(starting_node, n, device)
+			
+			res = node2vec
+
+			if neighbours:
+				w_neighs = {}
+				for node, vec in node2vec.items():
+					neighbours = self.hier_obj.neighbors(self.node2id[node])
+					if node not in w_neighs:
+						w_neighs[node] = [node2vec[self.id2node[neigh_vecs]] for neigh_vecs in neighbours]
+				res = node2vec, w_neighs			
 
 		return res
 

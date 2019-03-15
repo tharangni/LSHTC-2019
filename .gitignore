@@ -8,6 +8,7 @@
 *.whl
 *.png
 *.ckpt
+*.bz2
 */*
 
 # Byte-compiled / optimized / DLL files

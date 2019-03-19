@@ -1,4 +1,6 @@
 import os
+import torch
+import random
 import logging
 
 from scripts.utils.hierarchy import *
@@ -12,20 +14,37 @@ class HierarchyUtils(object):
 	#parents checker, 
 	[x] depth of tree, 
 	[x] depth + path of tree till that point,
-	subsample from subtree
+	[x] subsample from subtree
+	[] REPRESENTATIVE LABEL EMBEDDINGS
 	display all info in table
 	[x] island checker
 	[x] un/directed graph vector generation
 	[x] path frequency distribution
 	"""
 	
-	def __init__(self, category_file, subset, directed):
+	def __init__(self, category_file, directed, is_text):
+		
 		super(HierarchyUtils, self).__init__()
+		
 		self.category_file = category_file
 		self.directed = directed
-		self.parent2child_table, self.child2parent_table, self.node2id, \
-		self.id2node, self.pi_parents, self.T_leaves, self.N_all_nodes = lookup_table(self.category_file, subset)
+		self.is_text = is_text
+		
+		if is_text:
+			lookup = lookup_text(self.category_file, False)
+		else:
+			lookup = lookup_table(self.category_file, False)
+
+		self.parent2child_table = lookup["parent2child"]
+		self.child2parent_table = lookup["child2parent"]
+		self.node2id = lookup["node2id"]
+		self.id2node = lookup["id2node"]
+		self.pi_parents = lookup["pi_parents"]
+		self.T_leaves = lookup["T_leaves"]
+		self.N_all_nodes = lookup["N_all_nodes"]
+		
 		self.hier_type = hierarchy_type(self.child2parent_table)
+		
 		self.hier_obj = hierarchy2graph(self.parent2child_table, self.node2id, self.directed)
 
 
@@ -50,7 +69,9 @@ class HierarchyUtils(object):
 
 
 	def get_shortest_path(self, src, dest):
-		# pass only id of node as source and destination vertices
+		'''
+		pass only id of node as source and destination vertices
+		'''
 		return self.hier_obj.get_shortest_paths(src, dest)
 
 	def BFS(self, s, n = 32, device = 'cpu', only_nodes = False): 
@@ -211,14 +232,12 @@ class HierarchyUtils(object):
 
 
 if __name__ == '__main__':
-	path = os.path.relpath(path="DMOZ/cat_hier.txt")
-	T = HierarchyUtils(path, False, True)
-	print(len(T.subtree(T.node2id[125950])))
-	# ll = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+	path = os.path.relpath(path="OmniScience/original/os_tree_cat_hier.txt")
+	# T = HierarchyUtils(path, False, True)
 	# print(T.draw_graph(50))
 	# print(T.get_depth(True))
 
 	# vecs = T.generate_vectors()	
 	# print(len(vecs[0]))
-	# print("*"*50)
+	# print("-"*50)
 	# print(len(vecs[1]))

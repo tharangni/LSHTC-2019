@@ -1,3 +1,9 @@
+# [] pre-process raw text as well
+# [] min freq count
+# [] doc contents
+# [] what to use for featurizing
+
+
 import os
 import torch
 import numpy as np

@@ -1,3 +1,8 @@
+# [] output should be in a generic df format [docid, doc labels, doc vector]
+# [] libsvm should generate this df
+# [] raw text should generate this df
+
+
 import os
 import time
 import torch
@@ -30,7 +35,7 @@ def lower_dim(file_path, reduce, n_components):
 	# for i, label_tuple in enumerate(data[1]):
 	# 	for each_label in label_tuple:
 	# 		new_doc.append(new_data[i])
-	# 		new_labels.append(int(each_label))
+	# 		new_labels.append(int(each _label))
 
 	# new_doc = np.stack(new_doc, axis=0)
 	

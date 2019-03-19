@@ -23,23 +23,30 @@ def lower_dim(file_path, reduce, n_components):
 	new_data = data[0]
 
 	if reduce:
-		svd = TruncatedSVD(n_components=n_components, n_iter=10, random_state=None)
-		current_time = time.time()
-		new_data = svd.fit_transform(data[0])
-		elapsed_time = time.time() - current_time
-		min_, sec_ = divmod(elapsed_time, 60)
-		logging.info("Elapsed time: {}min {:.2f}sec".format(min_, sec_))
+		new_data = call_svd(data[0], n_components)
 
-	new_doc, new_labels = [], []
+	new_doc, new_labels = new_data, data[1]
 	
-	for i, label_tuple in enumerate(data[1]):
-		for each_label in label_tuple:
-			new_doc.append(new_data[i])
-			new_labels.append(int(each_label))
+	# for i, label_tuple in enumerate(data[1]):
+	# 	for each_label in label_tuple:
+	# 		new_doc.append(new_data[i])
+	# 		new_labels.append(int(each_label))
 
-	new_doc = np.stack(new_doc, axis=0)
+	# new_doc = np.stack(new_doc, axis=0)
 	
 	return new_doc, new_labels
+
+mem = Memory("./../../mycache_getdata")
+@mem.cache
+def call_svd(data, n_components):
+    svd = TruncatedSVD(n_components=n_components, n_iter=10, random_state=None)
+    current_time = time.time()
+    new_data = svd.fit_transform(data)
+    elapsed_time = time.time() - current_time
+    min_, sec_ = divmod(elapsed_time, 60)
+    logging.info("Elapsed time: {}min {:.2f}sec".format(min_, sec_))
+
+    return new_data
 
 
 mem = Memory("./../../mycache_getdata")

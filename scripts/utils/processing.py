@@ -9,7 +9,6 @@ from random import sample
 from collections import OrderedDict, Counter
 
 from joblib import Memory
-from sklearn.datasets import load_svmlight_file
 
 # # N and labels_dict have to be present globally! (list of all the labels)
 # # labels_dict because I will keep accessing it for each document
@@ -37,24 +36,6 @@ def list2tensor(inp_list):
 
 	return out_tensor
 
-
-mem = Memory("./../../mycache")
-@mem.cache
-def generate_wn(N_all_nodes, n):
-	'''
-	Creates unique parameters for all nodes. 
-	Acts like a dictionary
-	'''
-	list_all = []
-	for _ in tqdm(range(len(N_all_nodes))):
-		c = torch.Tensor(n,).uniform_(0, 1)
-		c = list(c.numpy())
-		if c not in list_all:
-			list_all.append(c)
-
-	wn_tensors = list2tensor(list_all)
-	
-	return wn_tensors
 
 
 def generate_binary_yin(N_all_nodes, device):

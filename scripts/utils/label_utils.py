@@ -11,7 +11,7 @@ class HierarchyUtils(object):
 	leaf check, 
 	#parents checker, 
 	[x] depth of tree, 
-	depth + path of tree till that point,
+	[x] depth + path of tree till that point,
 	subsample from subtree
 	display all info in table
 	[x] island checker
@@ -49,37 +49,35 @@ class HierarchyUtils(object):
 		return ig.plot(g, layout = layout)
 
 
-	def BFS(self, s, n = 16, device = 'cpu'): 
-	# BFS traversal of a graph 
-	# passing the id of node as an arg
+	def get_shortest_path(self, src, dest):
+		# pass only id of node as source and destination vertices
+		return self.hier_obj.get_shortest_paths(src, dest)
 
-		# Mark all the vertices as not visited 
+	def BFS(self, s, n = 32, device = 'cpu', only_nodes = False): 
+		'''
+		- s : starting node (id)
+		- BFS traversal of a graph 
+		- passing the id of node as an arg
+		'''
 		visited = [False] * (len(self.N_all_nodes)) 
 		node2vec = {}
-		
-		# Create a queue for BFS 
+		subtree = []
+
 		queue = [] 
 		
-		# Mark the source node as  
-		# visited and enqueue it 
 		queue.append(s) 
 		visited[s] = True
 		
 		if self.id2node[s] not in node2vec:
-			root_vector = np.random.normal(loc = 0.8, scale = 0.1, size = n)
-			node2vec[self.id2node[s]] = torch.as_tensor(root_vector, device = device, dtype = torch.float32)
+			root_vector = torch.distributions.normal.Normal(torch.tensor([0.5]), torch.tensor([0.1]))
+			node2vec[self.id2node[s]] = root_vector.sample((n,))
 
 		while queue: 
 
-			# Dequeue a vertex from  
-			# queue and print it 
 			s = queue.pop(0) 
+			subtree.append(s)
 			# print (self.id2node[s]) 
 
-			# Get all adjacent vertices of the 
-			# dequeued vertex s. If a adjacent 
-			# has not been visited, then mark it 
-			# visited and enqueue it 
 			for i in self.hier_obj.neighbors(s): 
 				if visited[i] == False: 
 					queue.append(i) 
@@ -87,7 +85,13 @@ class HierarchyUtils(object):
 					if self.id2node[i] not in node2vec:
 						rand = random.uniform(0.0001, 0.0005)
 						node2vec[self.id2node[i]] = node2vec[self.id2node[s]] + rand
-		return node2vec
+
+		if only_nodes:
+			res = subtree
+		else:
+			res = node2vec
+
+		return res
 
 
 	def find_components(self):
@@ -96,7 +100,7 @@ class HierarchyUtils(object):
 
 		fe, ex = os.path.splitext(self.category_file)
 		fe = fe + "_components"
-		full_file = fe + '.' + ex
+		full_file = fe + ex
 
 		if not os.path.isfile(full_file):
 			file = open(full_file, "w+")
@@ -132,9 +136,20 @@ class HierarchyUtils(object):
 			res = False
 		return res
 
+	
+	def subtree(self, starting_node):
+		'''
+		returns node set of a subtree. essentially all the children under that node
+		'''
+
+		subtree_sample = self.BFS(starting_node, 0, 'cpu', True)
+		return subtree_sample
+
+
+	def generate_vectors(self, device = 'cpu', neighbours = True):
 		
-	def generate_vectors(self, n = 16, device = 'cpu', neighbours = True):
-		
+		n = len(self.N_all_nodes)
+
 		if self.directed:
 			# this method works for trees + dag
 			node2vec = {}
@@ -145,7 +160,7 @@ class HierarchyUtils(object):
 
 			# 2. use BFS for generating level order label vectors
 			for x in in_degree_nodes:
-				temp = self.BFS(	x, n, device)
+				temp = self.BFS(	x, n, device, False)
 				node2vec =  {**node2vec, **temp}
 			res = node2vec
 
@@ -176,7 +191,7 @@ class HierarchyUtils(object):
 			node2vec = {}
 			
 			for x in tqdm(starting_nodes):
-				temp = self.BFS(self.node2id[x], n, device)
+				temp = self.BFS(self.node2id[x], n, device, False)
 				for node, vec in temp.items():
 					if node not in node2vec:
 						node2vec[node] = vec
@@ -196,12 +211,14 @@ class HierarchyUtils(object):
 
 
 if __name__ == '__main__':
-	path = os.path.relpath(path="swiki/data/cat_hier.txt")
+	path = os.path.relpath(path="DMOZ/cat_hier.txt")
 	T = HierarchyUtils(path, False, True)
-	print(T.hier_type)
+	print(len(T.subtree(T.node2id[125950])))
+	# ll = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+	# print(T.draw_graph(50))
 	# print(T.get_depth(True))
 
-	vecs = T.generate_vectors()	
-	print(len(vecs[0]))
-	print("*"*50)
-	print(len(vecs[1]))
+	# vecs = T.generate_vectors()	
+	# print(len(vecs[0]))
+	# print("*"*50)
+	# print(len(vecs[1]))

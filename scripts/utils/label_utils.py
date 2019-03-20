@@ -8,15 +8,16 @@ logging.basicConfig(level=logging.INFO)
 
 class HierarchyUtils(object):
 	"""
-	docstring for TreeUtils
+	docstring for HierarchyUtils
 	[x] ideas: w_n, w_pi, 
-	leaf check, 
-	#parents checker, 
+	[] leaf check, 
+	[] #parents checker, 
 	[x] depth of tree, 
 	[x] depth + path of tree till that point,
 	[x] subsample from subtree
-	[] REPRESENTATIVE LABEL EMBEDDINGS
-	display all info in table
+	[] REPRESENTATIVE LABEL EMBEDDINGS - POINCARE EMBEDDINGS
+	[] TODO: LABEL EMBEDDING SIZE RESEARCH
+	[] display all info in table
 	[x] island checker
 	[x] un/directed graph vector generation
 	[x] path frequency distribution
@@ -61,8 +62,8 @@ class HierarchyUtils(object):
 		
 		assert num_samples < 100, "Sample size of {} is too large to display output properly".format(num_samples)
 		
-		p2c, _, n2i, _, _, _, _ = lookup_table(self.category_file, num_samples)
-		g = hierarchy2graph(p2c, n2i, self.directed)
+		res = lookup_table(self.category_file, num_samples)
+		g = hierarchy2graph(res["parent2child"], res["node2id"], self.directed)
 		layout = g.layout("kk")
 		g.vs["label"] = g.vs["name"]
 		return ig.plot(g, layout = layout)
@@ -132,16 +133,22 @@ class HierarchyUtils(object):
 			lines = f.readlines()
 
 		num_compenents = int(lines[0].split()[-2])
+		num_elements = int(lines[0].split()[2])
 
-		component_vertex = []
-		for each_line in lines[1:]:
-			try:
-				start = int(each_line.strip().split(",")[0].strip().split("[")[1].strip().split("]")[1])
-				if start not in component_vertex:
-					component_vertex.append(start)
-			except:
-				pass
+		if num_compenents == num_elements:
+			num_compenents = 1
+			component_vertex = 0
+		else:
+			component_vertex = []
+			for each_line in lines[1:]:
+				try:
+					start = int(each_line.strip().split(",")[0].strip().split("[")[1].strip().split("]")[1])
+					if start not in component_vertex:
+						component_vertex.append(start)
+				except:
+					pass
 		
+
 		return component_vertex, num_compenents
 
 

@@ -1,9 +1,3 @@
-# [] pre-process raw text as well
-# [] min freq count
-# [] doc contents
-# [] what to use for featurizing
-
-
 import os
 import torch
 import numpy as np
@@ -15,6 +9,12 @@ from random import sample
 from collections import OrderedDict, Counter
 
 from joblib import Memory
+
+# [] pre-process raw text as well
+# [] min freq count
+# [] doc contents
+# [] what to use for featurizing
+
 
 # # N and labels_dict have to be present globally! (list of all the labels)
 # # labels_dict because I will keep accessing it for each document
@@ -61,3 +61,76 @@ def generate_binary_yin(N_all_nodes, device):
 	y_in_dash = torch.as_tensor(np.where(t_16.numpy() > 0, 1.0, -1.0), device = device, dtype = torch.float32)
 	
 	return y_in_dash
+
+
+# !run this only once - this is just to create a smaller train-valid set
+# x, y = train_valid_split("swiki/data/train_remapped.txt")
+def train_valid_split(input_file):
+	
+	fname = str(Path(input_file))
+	fe, ex = os.path.splitext(fname) 
+	fe = 'swiki/data/valid'
+	
+	outfile = str(Path("{}_remapped{}".format(fe, ex)))
+	
+	output_valid = outfile
+	output_train_v = 'swiki/data/train_split_remapped.txt'
+	
+	ratio = 0.7
+	with open(input_file, "r") as f:
+		line = f.readlines()
+	
+	train_size = int(len(line)*ratio)
+	valid_size = int(len(line) - train_size)
+	
+	print(train_size, valid_size)
+	
+	valid_samples = sample(range(len(line)), valid_size)
+	
+	all_samples = list(range(len(line)))
+	train_samples = list(set(all_samples).difference(set(valid_samples)))
+			
+	print(len(valid_samples), len(train_samples))
+	file = open(output_valid, "w+")
+	for i in valid_samples:
+		instance = line[i].strip().split()
+		labels = instance[0]
+		doc_dict = OrderedDict()
+		temp_dict = {}
+		temp_string = ''
+
+		for pair in instance[1:]:
+			feat = pair.split(":")
+			if int(feat[0]) not in temp_dict:
+				temp_dict[int(feat[0])] = int(feat[1])
+
+		for key in sorted(temp_dict.keys()):
+			doc_dict[key] = temp_dict[key]
+
+		for feat, tf in doc_dict.items():
+			temp_string = temp_string + "{}:{} ".format(feat, tf)        
+		file.write("{} {}\n".format(labels, temp_string))
+	file.close()
+	
+	file = open(output_train_v, "w+")
+	for i in train_samples:
+		instance = line[i].strip().split()
+		labels = instance[0]
+		doc_dict = OrderedDict()
+		temp_dict = {}
+		temp_string = ''
+
+		for pair in instance[1:]:
+			feat = pair.split(":")
+			if int(feat[0]) not in temp_dict:
+				temp_dict[int(feat[0])] = int(feat[1])
+
+		for key in sorted(temp_dict.keys()):
+			doc_dict[key] = temp_dict[key]
+
+		for feat, tf in doc_dict.items():
+			temp_string = temp_string + "{}:{} ".format(feat, tf)        
+		file.write("{} {}\n".format(labels, temp_string))
+	file.close()
+
+	return train_samples, valid_samples

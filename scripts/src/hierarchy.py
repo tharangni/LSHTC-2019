@@ -16,7 +16,8 @@ def lookup_table(filename, subset):
 	'''
 	filename: <str> path to category file
 	subset: <bool> or <int> False or an int representing the number of labels to sample from
-	ASSUMPTION:
+	ASSUMPTION: 
+	the file format should be an edgelist
 	category format in the file is:
 	12345 23456
 	12345 34567
@@ -179,8 +180,8 @@ def lookup_text(filename, subset):
 	subset: <bool> or <int> False or an int representing the number of labels to sample from
 	ASSUMPTION:
 	category format in the file is encoded in bytes separated by #:
-	b'12345#23456
-	b'12345#34567
+	b'science#physics
+	b'physics#mechanics
 	the first number represents parent and the number following it represents child
 	'''
 	

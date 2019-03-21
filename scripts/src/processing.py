@@ -10,27 +10,10 @@ from collections import OrderedDict, Counter
 
 from joblib import Memory
 
-# [] pre-process raw text as well
-# [] min freq count
-# [] doc contents
-# [] what to use for featurizing
-
-
-# # N and labels_dict have to be present globally! (list of all the labels)
-# # labels_dict because I will keep accessing it for each document
-# order_label_mapping = generate_label_vector(N)
-def generate_order_mapping(N_all_nodes, rev = False):
-
-	order_mapping = {}
-	sorted_nodes = sorted(N_all_nodes)
-
-	for i, each_node in enumerate(sorted_nodes):
-		if each_node not in order_mapping:
-			order_mapping[each_node] = i+1
-	if rev:
-		order_mapping = {value:key for key, value in order_mapping.items()}
-
-	return order_mapping
+# [x] pre-process raw text as well
+# [x] min freq count
+# [x] doc contents
+# [x] what to use for featurizing - fasttext, sparse features
 
 
 def list2tensor(inp_list):

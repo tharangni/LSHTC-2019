@@ -3,7 +3,7 @@ import torch
 import random
 import logging
 
-from scripts.utils.hierarchy import *
+from scripts.src.hierarchy import *
 logging.basicConfig(level=logging.INFO)
 
 class HierarchyUtils(object):

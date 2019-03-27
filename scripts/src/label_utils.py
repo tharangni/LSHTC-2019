@@ -4,6 +4,7 @@ import random
 import logging
 
 from scripts.src.hierarchy import *
+from scripts.src.processing import *
 logging.basicConfig(level=logging.INFO)
 
 class HierarchyUtils(object):
@@ -16,7 +17,7 @@ class HierarchyUtils(object):
 	[x] depth + path of tree till that point,
 	[x] subsample from subtree
 	[] REPRESENTATIVE LABEL EMBEDDINGS - POINCARE EMBEDDINGS
-	[] TODO: LABEL EMBEDDING SIZE RESEARCH
+	[] TODO: LABEL EMBEDDING SIZE RESEARCH [NODE2VEC PAPER]
 	[] display all info in table
 	[x] island checker
 	[x] un/directed graph vector generation
@@ -62,7 +63,10 @@ class HierarchyUtils(object):
 		
 		assert num_samples < 100, "Sample size of {} is too large to display output properly".format(num_samples)
 		
-		res = lookup_table(self.category_file, num_samples)
+		if self.is_text:
+			res =  lookup_text(self.category_file, num_samples)
+		else:
+			res = lookup_table(self.category_file, num_samples)
 		g = hierarchy2graph(res["parent2child"], res["node2id"], self.directed)
 		layout = g.layout("kk")
 		g.vs["label"] = g.vs["name"]
@@ -78,6 +82,7 @@ class HierarchyUtils(object):
 	def BFS(self, s, n = 32, device = 'cpu', only_nodes = False): 
 		'''
 		- s : starting node (id)
+		- only_nodes : <bool> set true to find path traversed
 		- BFS traversal of a graph 
 		- passing the id of node as an arg
 		'''
@@ -91,8 +96,9 @@ class HierarchyUtils(object):
 		visited[s] = True
 		
 		if self.id2node[s] not in node2vec:
-			root_vector = torch.distributions.normal.Normal(torch.tensor([0.5]), torch.tensor([0.1]))
-			node2vec[self.id2node[s]] = root_vector.sample((n,))
+			root_vector = torch.randn(n,1)
+			xavier = torch.nn.init.xavier_uniform_(root_vector)
+			node2vec[self.id2node[s]] = xavier
 
 		while queue: 
 
@@ -105,7 +111,7 @@ class HierarchyUtils(object):
 					queue.append(i) 
 					visited[i] = True
 					if self.id2node[i] not in node2vec:
-						rand = random.uniform(0.0001, 0.0005)
+						rand = random.uniform(0.005, 0.009)
 						node2vec[self.id2node[i]] = node2vec[self.id2node[s]] + rand
 
 		if only_nodes:
@@ -231,7 +237,8 @@ class HierarchyUtils(object):
 				for node, vec in node2vec.items():
 					neighbours = self.hier_obj.neighbors(self.node2id[node])
 					if node not in w_neighs:
-						w_neighs[node] = [node2vec[self.id2node[neigh_vecs]] for neigh_vecs in neighbours]
+						temp_list = [node2vec[self.id2node[neigh_vecs]] for neigh_vecs in neighbours]
+						w_neighs[node] = torch.mean(list2tensor(temp_list), dim=0)
 				res = node2vec, w_neighs			
 
 		return res

@@ -13,10 +13,14 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm 
 from pathlib import Path
 from joblib import Memory
+from random import sample
 
-from collections import Counter, OrderedDict
 from sklearn.decomposition import TruncatedSVD
 from sklearn.datasets import load_svmlight_file
+from collections import Counter, OrderedDict, defaultdict
+
+from gensim.models.fasttext import FastText
+from gensim.parsing.preprocessing import preprocess_string
 
 
 
@@ -164,27 +168,96 @@ class LIBSVM_Reader(object):
 	[x] caching
 	[x] return df with <doc id, doc labels, doc vec>
 	[] reverse mapping df with {label_id -> doc vec}
-	[] create similar for raw text also (1/2) (OMS[x], RCV1[])
+	[x] create similar for raw text also (1/2) (OMS[x], RCV1[x])
 	[x] distribution of classes per document
 
 	"""
-	def __init__(self, file_path, reduce, n_components):
+	def __init__(self, file_path, reduce, n_components, subsample):
 		super(LIBSVM_Reader, self).__init__()
 		self.file_path = file_path
 		self.reduce = reduce
 		self.n_components = n_components
-		self.view_df()
+		self.subsample = subsample
+		self.view_df(subsample)
+		self.label_to_doc_mapping()
 
-	def view_df(self):
+	def view_df(self, subsample):
 		all_data = lower_dim(self.file_path, self.reduce, self.n_components)
 		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector"])
-		self.data_df["doc_labels"] = all_data[1]    
-		self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
-		for i in tqdm(self.data_df):
-			self.data_df.at[i, "doc_vector"] = torch.as_tensor(all_data[0][i], dtype=torch.float32)
-			self.data_df.at[i, "doc_id"] = i
+		
+		if not self.subsample:
+			self.data_df["doc_labels"] = all_data[1]    
+			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
+			for i in tqdm(self.data_df.index):
+				self.data_df.at[i, "doc_vector"] = torch.as_tensor(all_data[0][i], dtype=torch.float32)
+				self.data_df.at[i, "doc_id"] = i
+		else:
+			# 5% of the original data
+			orig_data = round(len(all_data[1]) * 0.05)
+			sample_ids = sample(range(len(all_data[1])), orig_data)
+			temp_labels = [all_data[1][i] for i in sample_ids]
+			self.data_df["doc_labels"] = temp_labels
+			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
+			for i, j in tqdm(enumerate(sample_ids)):
+				self.data_df.at[i, "doc_vector"] = torch.as_tensor(all_data[0][j], dtype=torch.float32)
+				self.data_df.at[i, "doc_id"] = i
+
 		return self.data_df
 
+
+	def label_to_doc_mapping(self):
+		
+		mapper = defaultdict(set)
+
+		for ix in tqdm(self.data_df.index):
+		    for labelid in self.data_df.at[ix, "doc_labels"]:
+		        mapper[labelid].add(self.data_df.at[ix, "doc_id"])
+		
+		self.rev_df = pd.DataFrame(columns=["label_id", "doc_id_list"])
+		self.rev_df["label_id"] = list(mapper.keys())
+		self.rev_df["doc_id_list"] = list(mapper.values())
+
+		return self.rev_df
+
+
+
+class CSV_Reader(object):
+	"""
+	docstring for CSV_Reader
+	df format: doc_vec, doc_id, doc_labels
+	"""
+	def __init__(self, filename, dataset, subsample):
+		super(CSV_Reader, self).__init__()
+		self.filename = filename
+		self.dataset = dataset
+		self.subsample = subsample
+		view_csv()
+	
+	def view_csv(self):
+		'''
+		maybe put this in a separate class called csv reader?
+		FUNCTION TO READ CSV FILES & DOC2VEC
+		***the csv files should be tab separated***
+		'''
+		read_df = pd.read_csv(self.filename, sep="\t", index_col=0)
+		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector"])
+
+		if self.dataset == "omniscience":
+			self.data_df["doc_id"] = read_df["doc_id"]
+			self.data_df["doc_labels"] = read_df["omniscience_label_ids"]
+			self.data_df["doc_vector"] = read_df["vec"]
+		
+		elif self.dataset == "rcv1":
+			self.data_df["doc_id"] = read_df["doc_id"]
+			self.data_df["doc_labels"] = read_df["topic_ids"]
+			self.data_df["doc_vector"] = read_df["vec"]
+
+		if self.subsample:
+			orig_data = round(len(self.data_df) * 0.1)
+			sample_ids = np.random.choice(self.data_df.index, size = orig_data, replace=False)
+			self.data_df = self.data_df.iloc[sample_ids, ]
+
+		return self.data_df
 
 
 class FTextIter(object):
@@ -213,7 +286,7 @@ class OmniscienceReader(object):
 		self.preprocess()
 
 	def preprocess(self):
-		self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
+		self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8', index_col=0)
 		self.om_df = self.om_df.dropna()
 
 		self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: ast.literal_eval(x) )
@@ -258,8 +331,7 @@ class OmniscienceReader(object):
 		else:
 			moo = FastText.load(filename)
 
-			self.model = moo
-		return self.model
+		return moo
 	
 
 	def gen_doc2vec(self, prefix):

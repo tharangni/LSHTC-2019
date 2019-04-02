@@ -17,6 +17,7 @@ from random import sample
 
 from sklearn.decomposition import TruncatedSVD
 from sklearn.datasets import load_svmlight_file
+from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
 from collections import Counter, OrderedDict, defaultdict
 
 from gensim.models.fasttext import FastText
@@ -33,10 +34,15 @@ def lower_dim(file_path, reduce, n_components):
 
 	if reduce:
 		new_data = call_svd(data[0], n_components)
+	else:
+		new_data = data[0].todense()
 
+	lbin = MultiLabelBinarizer(sparse_output=True)
+	label_matrix = lbin.fit_transform(data[1])
+	
 	new_doc, new_labels = new_data, data[1]
 	
-	return new_doc, new_labels
+	return new_doc, new_labels, label_matrix, lbin
 
 
 mem = Memory("./../../mycache_getdata")
@@ -73,7 +79,6 @@ def get_data(filename):
 		data = load_svmlight_file(f, multilabel=True)
 
 	return data[0], data[1]
-
 
 
 def preprocess_libsvm(input_file, output_file):
@@ -115,6 +120,7 @@ def class_statistics(df, name):
 	if name == 'omniscience':
 		col = "omniscience_labels"
 	else:
+		# TODO: check column name again for other datasets
 		col = "doc_labels"
 
 	# 1. Label ids vs. number of labels
@@ -183,8 +189,11 @@ class LIBSVM_Reader(object):
 
 	def view_df(self, subsample):
 		all_data = lower_dim(self.file_path, self.reduce, self.n_components)
+		self.all_y = all_data[1]
+		self.label_matrix = all_data[2]
+		self.binarizer = all_data[3]
 		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector"])
-		
+
 		if not self.subsample:
 			self.data_df["doc_labels"] = all_data[1]    
 			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
@@ -192,8 +201,8 @@ class LIBSVM_Reader(object):
 				self.data_df.at[i, "doc_vector"] = torch.as_tensor(all_data[0][i], dtype=torch.float32)
 				self.data_df.at[i, "doc_id"] = i
 		else:
-			# 5% of the original data
-			orig_data = round(len(all_data[1]) * 0.05)
+			# 10% of the original data
+			orig_data = round(len(all_data[1]) * subsample)
 			sample_ids = sample(range(len(all_data[1])), orig_data)
 			temp_labels = [all_data[1][i] for i in sample_ids]
 			self.data_df["doc_labels"] = temp_labels
@@ -210,8 +219,8 @@ class LIBSVM_Reader(object):
 		mapper = defaultdict(set)
 
 		for ix in tqdm(self.data_df.index):
-		    for labelid in self.data_df.at[ix, "doc_labels"]:
-		        mapper[labelid].add(self.data_df.at[ix, "doc_id"])
+			for labelid in self.data_df.at[ix, "doc_labels"]:
+				mapper[labelid].add(self.data_df.at[ix, "doc_id"])
 		
 		self.rev_df = pd.DataFrame(columns=["label_id", "doc_id_list"])
 		self.rev_df["label_id"] = list(mapper.keys())
@@ -226,12 +235,17 @@ class CSV_Reader(object):
 	docstring for CSV_Reader
 	df format: doc_vec, doc_id, doc_labels
 	"""
-	def __init__(self, filename, dataset, subsample):
+	def __init__(self, filename, subsample):
 		super(CSV_Reader, self).__init__()
-		self.filename = filename
-		self.dataset = dataset
+		self.filename = filename	
 		self.subsample = subsample
-		view_csv()
+
+		if "omniscience" in self.filename.lower():
+			self.dataset = "omniscience"
+		elif "rcv1" in self.filename.lower():
+			self.dataset = "rcv1"
+		self.view_csv()
+		self.label_to_doc_mapping()
 	
 	def view_csv(self):
 		'''
@@ -239,7 +253,7 @@ class CSV_Reader(object):
 		FUNCTION TO READ CSV FILES & DOC2VEC
 		***the csv files should be tab separated***
 		'''
-		read_df = pd.read_csv(self.filename, sep="\t", index_col=0)
+		read_df = pd.read_csv(self.filename, sep="\t")
 		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector"])
 
 		if self.dataset == "omniscience":
@@ -258,6 +272,20 @@ class CSV_Reader(object):
 			self.data_df = self.data_df.iloc[sample_ids, ]
 
 		return self.data_df
+
+	def label_to_doc_mapping(self):
+		
+		mapper = defaultdict(set)
+
+		for ix in tqdm(self.data_df.index):
+			for labelid in self.data_df.at[ix, "doc_labels"]:
+				mapper[labelid].add(self.data_df.at[ix, "doc_id"])
+		
+		self.rev_df = pd.DataFrame(columns=["label_id", "doc_id_list"])
+		self.rev_df["label_id"] = list(mapper.keys())
+		self.rev_df["doc_id_list"] = list(mapper.values())
+
+		return self.rev_df
 
 
 class FTextIter(object):
@@ -286,7 +314,7 @@ class OmniscienceReader(object):
 		self.preprocess()
 
 	def preprocess(self):
-		self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8', index_col=0)
+		self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
 		self.om_df = self.om_df.dropna()
 
 		self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: ast.literal_eval(x) )

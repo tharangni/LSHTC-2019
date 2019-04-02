@@ -24,11 +24,12 @@ class HierarchyUtils(object):
 	[x] path frequency distribution
 	"""
 	
-	def __init__(self, category_file, directed, is_text):
+	def __init__(self, category_file, num_features, directed, is_text):
 		
 		super(HierarchyUtils, self).__init__()
 		
 		self.category_file = category_file
+		self.num_features = num_features
 		self.directed = directed
 		self.is_text = is_text
 		
@@ -79,13 +80,14 @@ class HierarchyUtils(object):
 		'''
 		return self.hier_obj.get_shortest_paths(src, dest)
 
-	def BFS(self, s, n = 32, device = 'cpu', only_nodes = False): 
+	def BFS(self, s, device = 'cpu', only_nodes = False): 
 		'''
 		- s : starting node (id)
 		- only_nodes : <bool> set true to find path traversed
 		- BFS traversal of a graph 
 		- passing the id of node as an arg
 		'''
+		n = self.num_features
 		visited = [False] * (len(self.N_all_nodes)) 
 		node2vec = {}
 		subtree = []
@@ -96,9 +98,8 @@ class HierarchyUtils(object):
 		visited[s] = True
 		
 		if self.id2node[s] not in node2vec:
-			root_vector = torch.randn(n,1)
-			xavier = torch.nn.init.xavier_uniform_(root_vector)
-			node2vec[self.id2node[s]] = xavier
+			root_vector = torch.randn(*n)
+			node2vec[self.id2node[s]] = root_vector
 
 		while queue: 
 
@@ -182,7 +183,6 @@ class HierarchyUtils(object):
 
 	def generate_vectors(self, device = 'cpu', neighbours = True):
 		
-		n = len(self.N_all_nodes)
 
 		if self.directed:
 			# this method works for trees + dag
@@ -194,7 +194,7 @@ class HierarchyUtils(object):
 
 			# 2. use BFS for generating level order label vectors
 			for x in in_degree_nodes:
-				temp = self.BFS(	x, n, device, False)
+				temp = self.BFS(	x, device, False)
 				node2vec =  {**node2vec, **temp}
 			res = node2vec
 
@@ -225,7 +225,7 @@ class HierarchyUtils(object):
 			node2vec = {}
 			
 			for x in tqdm(starting_nodes):
-				temp = self.BFS(self.node2id[x], n, device, False)
+				temp = self.BFS(self.node2id[x], device, False)
 				for node, vec in temp.items():
 					if node not in node2vec:
 						node2vec[node] = vec

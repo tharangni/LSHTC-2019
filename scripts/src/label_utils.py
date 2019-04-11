@@ -29,14 +29,13 @@ class HierarchyUtils(object):
 		super(HierarchyUtils, self).__init__()
 		
 		self.category_file = category_file
-		self.num_features = num_features
 		self.directed = directed
 		self.is_text = is_text
 		
 		if is_text:
 			lookup = lookup_text(self.category_file, False)
 		else:
-			lookup = lookup_table(self.category_file, False)
+			lookup = lookup_table(self.category_file, False )
 
 		self.parent2child_table = lookup["parent2child"]
 		self.child2parent_table = lookup["child2parent"]
@@ -46,10 +45,13 @@ class HierarchyUtils(object):
 		self.T_leaves = lookup["T_leaves"]
 		self.N_all_nodes = lookup["N_all_nodes"]
 		
+		self.num_features = [num_features, len(self.N_all_nodes)]
+
 		self.hier_type = hierarchy_type(self.child2parent_table)
 		
 		self.hier_obj = hierarchy2graph(self.parent2child_table, self.node2id, self.directed)
-
+		self.W = torch.empty(*self.num_features)
+		_ = self.generate_vectors(neighbours=False)
 
 	def get_depth(self, hist = False):
 			
@@ -67,7 +69,7 @@ class HierarchyUtils(object):
 		if self.is_text:
 			res =  lookup_text(self.category_file, num_samples)
 		else:
-			res = lookup_table(self.category_file, num_samples)
+			res = lookup_table(self.category_file, num_samples,  )
 		g = hierarchy2graph(res["parent2child"], res["node2id"], self.directed)
 		layout = g.layout("kk")
 		g.vs["label"] = g.vs["name"]
@@ -98,7 +100,8 @@ class HierarchyUtils(object):
 		visited[s] = True
 		
 		if self.id2node[s] not in node2vec:
-			root_vector = torch.randn(*n)
+			root_vector = torch.randn(n[0])
+			self.W[:,s] = root_vector
 			node2vec[self.id2node[s]] = root_vector
 
 		while queue: 
@@ -112,8 +115,10 @@ class HierarchyUtils(object):
 					queue.append(i) 
 					visited[i] = True
 					if self.id2node[i] not in node2vec:
-						rand = random.uniform(0.005, 0.009)
-						node2vec[self.id2node[i]] = node2vec[self.id2node[s]] + rand
+						rand = random.uniform(0.0001, 0.005)
+						vec = node2vec[self.id2node[s]] + rand
+						self.W[:, i] = vec
+						node2vec[self.id2node[i]] = vec
 
 		if only_nodes:
 			res = subtree

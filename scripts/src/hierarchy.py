@@ -45,10 +45,11 @@ def lookup_table(filename, subset):
 			# map to the respective dicts -> parent:child relationship
 			# parent2child lookup table
 			for x in child_node:
+				int_x = int(x)
 				if parent_node not in p2c_table:
-					p2c_table[parent_node] = [int(x)]
+					p2c_table[parent_node] = [int_x]
 				else:
-					p2c_table[parent_node].append(int(x))
+					p2c_table[parent_node].append(int_x)
 				
 			#child2parent lookup table
 			for x in child_node:
@@ -60,13 +61,13 @@ def lookup_table(filename, subset):
 				
 			# map parent/child node to a node<->id
 			if parent_node not in node2id:
-				p_id = i
-				node2id[parent_node] = p_id
-				id2node[p_id] = parent_node
-				i+=1
+					p_id = i
+					node2id[parent_node] = p_id
+					id2node[p_id] = parent_node
+					i+=1
 			else:
 				p_id = node2id[parent_node]
-			
+
 			for x in child_node:
 				int_x = int(x)
 				if int_x not in node2id:
@@ -80,7 +81,7 @@ def lookup_table(filename, subset):
 	pi_parents = set(p2c_table.keys())        
 	T_leaves = (c2p_table.keys() - p2c_table.keys()) 
 	N_all_nodes = pi_parents.union(T_leaves)
-	
+
 
 	obj = { 
 	"parent2child" : p2c_table,

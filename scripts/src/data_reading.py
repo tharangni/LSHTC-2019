@@ -20,9 +20,16 @@ from sklearn.datasets import load_svmlight_file
 from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
 from collections import Counter, OrderedDict, defaultdict
 
+from skmultilearn import problem_transform
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+
 from gensim.models.fasttext import FastText
 from gensim.parsing.preprocessing import preprocess_string
 
+# debugging ML code/NNs
+# !!!unit testing !!!
+num_gpus = torch.cuda.device_count()
+device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")
 
 
 mem = Memory("./../../mycache_getdata")
@@ -111,11 +118,12 @@ def preprocess_libsvm(input_file, output_file):
 	return output_file
 
 
-def class_statistics(df, name):
+def class_statistics(df, name, show):
 	'''
 	statistics display
 	<df> : pandas df
 	<name> : df name, str
+	<show> : plot-show, bool
 	'''
 	if name == 'omniscience':
 		col = "omniscience_labels"
@@ -135,11 +143,15 @@ def class_statistics(df, name):
 	kk = [k[0] for k in class_distb]
 	vv = [k[1] for k in class_distb]
 
-	plt.figure(1)
-	plt.barh(y = kk[:20], width = vv[:20])
-	plt.xlabel("Number of labels")
-	plt.ylabel("Labels")
-	plt.title("Top 20");
+	plt.figure(figsize=(12,8))
+	if show:
+		plt.figure(1)
+		plt.barh(y = kk, width = vv)
+		plt.yticks(kk, kk)
+		plt.xlabel("Number of labels")
+		plt.ylabel("Labels")
+		plt.title("Top 20")
+		plt.tight_layout();
 
 
 	# 2. Number of labels per instance (label counts vs. number of instances)
@@ -154,11 +166,13 @@ def class_statistics(df, name):
 	kkk = [k[0] for k in label_dist]
 	vvv = [k[1] for k in label_dist]
 
-	plt.figure(2)
-	plt.bar(x = kkk[1:20], height = vvv[1:20])
-	plt.xlabel("Count of labels")
-	plt.ylabel("Number of instances")
-	plt.title("Decreasing order (count 1 excluded)");
+	if show:
+		plt.figure(2)
+		plt.bar(x = kkk[1:20], height = vvv[1:20])
+		plt.xlabel("Count of labels")
+		plt.ylabel("Number of instances")
+		plt.title("Decreasing order (count 1 excluded)")
+		plt.tight_layout();
 
 	return 0
 
@@ -173,46 +187,63 @@ class LIBSVM_Reader(object):
 	[x] dim reduction
 	[x] caching
 	[x] return df with <doc id, doc labels, doc vec>
-	[] reverse mapping df with {label_id -> doc vec}
-	[x] create similar for raw text also (1/2) (OMS[x], RCV1[x])
+	[x] create similar for raw text also (2/2) (OMS[x], RCV1[x])
 	[x] distribution of classes per document
 
 	"""
-	def __init__(self, file_path, reduce, n_components, subsample):
+	def __init__(self, file_path, reduce, n_components, subsample, split):
 		super(LIBSVM_Reader, self).__init__()
+		self.split = split
 		self.file_path = file_path
 		self.reduce = reduce
 		self.n_components = n_components
 		self.subsample = subsample
-		self.view_df(subsample)
-		self.label_to_doc_mapping()
 
-	def view_df(self, subsample):
 		all_data = lower_dim(self.file_path, self.reduce, self.n_components)
+		self.all_x = all_data[0]
 		self.all_y = all_data[1]
 		self.label_matrix = all_data[2]
 		self.binarizer = all_data[3]
-		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector"])
+		self.view_df(subsample)
+		self.label_to_doc_mapping()
+		
+		# map to corresponding class ids
+		class_labels = self.binarizer.classes_
+		temp = {}
+		for j, i in enumerate(list(class_labels)):
+			if i not in temp:
+				temp[i] = j
+
+		self.small_mapper = temp
+		
+		if self.split == 'train':
+			self.oversample()
+			self.view_df(subsample)
+		
+
+
+	def view_df(self, subsample):
+
+		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector", "y_true"])
 
 		if not self.subsample:
-			self.data_df["doc_labels"] = all_data[1]    
+			self.data_df["doc_labels"] = self.all_y  
 			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
 			for i in tqdm(self.data_df.index):
-				self.data_df.at[i, "doc_vector"] = torch.as_tensor(all_data[0][i], dtype=torch.float32)
+				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[i], dtype=torch.float32, device = device)
 				self.data_df.at[i, "doc_id"] = i
 		else:
 			# 10% of the original data
-			orig_data = round(len(all_data[1]) * subsample)
-			sample_ids = sample(range(len(all_data[1])), orig_data)
-			temp_labels = [all_data[1][i] for i in sample_ids]
+			orig_data = round(len(self.all_y) * subsample)
+			sample_ids = sample(range(len(self.all_y)), orig_data)
+			temp_labels = [self.all_y[i] for i in sample_ids]
 			self.data_df["doc_labels"] = temp_labels
 			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
 			for i, j in tqdm(enumerate(sample_ids)):
-				self.data_df.at[i, "doc_vector"] = torch.as_tensor(all_data[0][j], dtype=torch.float32)
+				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[j], dtype=torch.float32, device =device)
 				self.data_df.at[i, "doc_id"] = i
 
 		return self.data_df
-
 
 	def label_to_doc_mapping(self):
 		
@@ -227,6 +258,47 @@ class LIBSVM_Reader(object):
 		self.rev_df["doc_id_list"] = list(mapper.values())
 
 		return self.rev_df
+
+	def oversample(self):
+
+		ally = self.all_y
+		allx = self.all_x
+				
+		new_doc, new_labels = [], []
+
+		for i, label_tuple in enumerate(ally):
+			for each_label in label_tuple:
+				new_doc.append(allx[i])
+				new_labels.append(int(each_label))
+
+		new_doc = np.stack(new_doc, axis=0)
+
+		ymat_list = new_labels
+
+		cou = Counter()
+		for i in ymat_list:
+			cou[i] += 1
+		
+		d = np.array(list(cou.values()))
+
+		cutoff = round(d.mean()).astype(int)
+
+		cids = {}
+		for k, v in cou.items():
+			if v < cutoff:
+				cids[k] = np.random.randint(cutoff-20, cutoff+1)
+			else:
+				cids[k] = v
+
+		lp = problem_transform.LabelPowerset()
+		transform_ymat = lp.transform(self.label_matrix) 
+		ros = RandomOverSampler(random_state=42, sampling_strategy="minority")
+		# ros = RandomOverSampler(random_state=42, sampling_strategy=cids)
+		self.all_x, y_sm = ros.fit_sample(self.all_x, transform_ymat)
+		
+
+		self.label_matrix = lp.inverse_transform(y_sm)
+		self.all_y = self.binarizer.inverse_transform(self.label_matrix)
 
 
 

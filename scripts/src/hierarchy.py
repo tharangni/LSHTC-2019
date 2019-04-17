@@ -22,6 +22,7 @@ def lookup_table(filename, subset):
 	12345 23456
 	12345 34567
 	the first number represents parent and the number following it represents child
+	- check for file type: if DAG, then convert it to tree - i.e all p2c, c2p etc
 	'''
 	
 	p2c_table = {}

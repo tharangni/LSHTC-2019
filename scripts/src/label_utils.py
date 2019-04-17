@@ -2,14 +2,19 @@ import os
 import torch
 import random
 import logging
+import networkx as nx
 
 from scripts.src.hierarchy import *
 from scripts.src.processing import *
 logging.basicConfig(level=logging.INFO)
 
+num_gpus = torch.cuda.device_count()
+device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")
+
 class HierarchyUtils(object):
 	"""
 	docstring for HierarchyUtils
+	- make sure everything uses a uniform library in the end: either igraph or networkx
 	[x] ideas: w_n, w_pi, 
 	[] leaf check, 
 	[] #parents checker, 
@@ -18,18 +23,20 @@ class HierarchyUtils(object):
 	[x] subsample from subtree
 	[] REPRESENTATIVE LABEL EMBEDDINGS - POINCARE EMBEDDINGS
 	[] TODO: LABEL EMBEDDING SIZE RESEARCH [NODE2VEC PAPER]
-	[] display all info in table
+	[x] convert DAG to TREE (arborescence)
 	[x] island checker
 	[x] un/directed graph vector generation
 	[x] path frequency distribution
 	"""
 	
-	def __init__(self, category_file, num_features, directed, is_text):
+	def __init__(self, category_file, num_features, is_text):
 		
 		super(HierarchyUtils, self).__init__()
 		
 		self.category_file = category_file
-		self.directed = directed
+		
+		self.graph_checker()
+		
 		self.is_text = is_text
 		
 		if is_text:
@@ -50,8 +57,40 @@ class HierarchyUtils(object):
 		self.hier_type = hierarchy_type(self.child2parent_table)
 		
 		self.hier_obj = hierarchy2graph(self.parent2child_table, self.node2id, self.directed)
-		self.W = torch.empty(*self.num_features)
+		self.W = torch.nn.init.xavier_normal_(torch.empty(*self.num_features))
 		_ = self.generate_vectors(neighbours=False)
+
+
+	def graph_checker(self):
+	
+		D = nx.read_edgelist(self.category_file, create_using=nx.DiGraph(), nodetype = int)
+		self.directed = D.is_directed()
+		flag = nx.is_branching(D)
+		
+		if not flag:
+			logging.info("Category is a DAG, converting to MST using arborescence")
+			
+			fe, ex = os.path.splitext(self.category_file)
+			fe_ = "{}_converted".format(fe)
+			self.category_file = fe_ + ex
+			
+			if not os.path.isfile(self.category_file):
+				F = nx.minimum_spanning_arborescence(D)
+				nx.write_edgelist(F, self.category_file)
+
+				with open(self.category_file, "r") as f:
+					lines = f.readlines()
+
+				fin = open(self.category_file, "w+")
+
+				for i, line in enumerate(lines):
+					new_line = line.strip().split(" ")[:2]
+					new_line = list(map(int, new_line))
+					str_new_line = "{} {}\n".format(new_line[0], new_line[1])
+					fin.write(str_new_line)
+
+				fin.close()
+				
 
 	def get_depth(self, hist = False):
 			
@@ -100,7 +139,8 @@ class HierarchyUtils(object):
 		visited[s] = True
 		
 		if self.id2node[s] not in node2vec:
-			root_vector = torch.randn(n[0])
+			root_vector = torch.randn(n[0], 1)
+			root_vector = torch.nn.init.xavier_normal_(root_vector).squeeze()
 			self.W[:,s] = root_vector
 			node2vec[self.id2node[s]] = root_vector
 
@@ -115,7 +155,7 @@ class HierarchyUtils(object):
 					queue.append(i) 
 					visited[i] = True
 					if self.id2node[i] not in node2vec:
-						rand = random.uniform(0.0001, 0.005)
+						rand = random.uniform(0.0001, 0.0005)
 						vec = node2vec[self.id2node[s]] + rand
 						self.W[:, i] = vec
 						node2vec[self.id2node[i]] = vec
@@ -199,7 +239,7 @@ class HierarchyUtils(object):
 
 			# 2. use BFS for generating level order label vectors
 			for x in in_degree_nodes:
-				temp = self.BFS(	x, device, False)
+				temp = self.BFS(x, device, False)
 				node2vec =  {**node2vec, **temp}
 			res = node2vec
 

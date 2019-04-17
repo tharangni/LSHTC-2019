@@ -14,6 +14,7 @@ from tqdm import tqdm
 from pathlib import Path
 from joblib import Memory
 from random import sample
+from scipy.sparse import csr_matrix
 
 from sklearn.decomposition import TruncatedSVD
 from sklearn.datasets import load_svmlight_file
@@ -32,7 +33,7 @@ num_gpus = torch.cuda.device_count()
 device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")
 
 
-mem = Memory("./../../mycache_getdata")
+mem = Memory("./mycache_getdata")
 @mem.cache
 def lower_dim(file_path, reduce, n_components):
 
@@ -42,7 +43,7 @@ def lower_dim(file_path, reduce, n_components):
 	if reduce:
 		new_data = call_svd(data[0], n_components)
 	else:
-		new_data = data[0].todense()
+		new_data = data[0]
 
 	lbin = MultiLabelBinarizer(sparse_output=True)
 	label_matrix = lbin.fit_transform(data[1])
@@ -52,7 +53,7 @@ def lower_dim(file_path, reduce, n_components):
 	return new_doc, new_labels, label_matrix, lbin
 
 
-mem = Memory("./../../mycache_getdata")
+mem = Memory("./mycache_getdata")
 @mem.cache
 def call_svd(data, n_components):
 	svd = TruncatedSVD(n_components=n_components, n_iter=10, random_state=None)
@@ -65,7 +66,7 @@ def call_svd(data, n_components):
 	return new_data
 
 
-mem = Memory("./../../mycache_getdata")
+mem = Memory("./mycache_getdata")
 @mem.cache
 def get_data(filename):
 	
@@ -73,7 +74,7 @@ def get_data(filename):
 	fe, ex = os.path.splitext(fname) 
 
 	try:
-		data = load_svmlight_file(fname, multilabel=True)
+		data = load_svmlight_file(fname,  multilabel=True)
 	except:
 		# Required: if the input data isn't in the correct libsvm format
 		outfile = str(Path("{}_small{}".format(fe, ex)))
@@ -88,6 +89,43 @@ def get_data(filename):
 	return data[0], data[1]
 
 
+mem = Memory("./mycache_getdata")
+@mem.cache
+def read_svmlight_file(file_path, n_features):
+
+	with open(file_path) as fin:
+		line_index = 0
+		data_indices = list()
+		data = list()
+		labels = []
+		for line in tqdm(fin):
+			lbl_feat_str, sep, comment = line.strip().partition("#")
+			tokens1 = lbl_feat_str.split(',')
+			tokens2 = tokens1[-1].split()
+
+			line_labels = [int(i) for i in tokens1[:-1] + tokens2[:1]]
+			labels.append(line_labels)
+
+			features = tokens2[1:]
+			for f in features:
+				fid, fval = f.split(':')
+				data_indices.append([line_index, int(fid)-1])
+				data.append(float(fval))
+			line_index += 1
+
+	n_feat = max(np.array(data)).astype(int) + 1
+
+	print("data {}".format(n_feat))
+
+	if n_features == None:
+		X = csr_matrix((np.array(data), np.array(data_indices).T))
+	else:
+		X = csr_matrix((np.array(data), np.array(data_indices).T), shape = (line_index, n_features))
+
+	return X, labels
+
+
+
 def preprocess_libsvm(input_file, output_file):
 	# converts file to the required libsvm format.
 	# this is very brute force but can be made faster [IMPROVE]
@@ -95,7 +133,7 @@ def preprocess_libsvm(input_file, output_file):
 	file = open(output_file, "w+")
 	with open(input_file, "r") as f:
 		head = [next(f) for x in range(500)] # retrieve only `n` docs
-		for i, line in enumerate(tqdm(head)): # change to f/head depending on your needs
+		for i, line in enumerate(tqdm(f)): # change to f/head depending on your needs
 			instance = line.strip().split()
 			labels = instance[0]
 			doc_dict = OrderedDict()
@@ -146,8 +184,7 @@ def class_statistics(df, name, show):
 	plt.figure(figsize=(12,8))
 	if show:
 		plt.figure(1)
-		plt.barh(y = kk, width = vv)
-		plt.yticks(kk, kk)
+		plt.barh(y = kk[:20], width = vv[:20])
 		plt.xlabel("Number of labels")
 		plt.ylabel("Labels")
 		plt.title("Top 20")
@@ -168,13 +205,13 @@ def class_statistics(df, name, show):
 
 	if show:
 		plt.figure(2)
-		plt.bar(x = kkk[1:20], height = vvv[1:20])
+		plt.bar(x = kkk[:20], height = vvv[:20])
 		plt.xlabel("Count of labels")
 		plt.ylabel("Number of instances")
 		plt.title("Decreasing order (count 1 excluded)")
 		plt.tight_layout();
 
-	return 0
+	return class_distb, label_dist
 
 
 
@@ -204,9 +241,9 @@ class LIBSVM_Reader(object):
 		self.all_y = all_data[1]
 		self.label_matrix = all_data[2]
 		self.binarizer = all_data[3]
-		self.view_df(subsample)
+		self.view_df()
 		self.label_to_doc_mapping()
-		
+
 		# map to corresponding class ids
 		class_labels = self.binarizer.classes_
 		temp = {}
@@ -221,8 +258,7 @@ class LIBSVM_Reader(object):
 			self.view_df(subsample)
 		
 
-
-	def view_df(self, subsample):
+	def view_df(self):
 
 		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector", "y_true"])
 
@@ -230,11 +266,11 @@ class LIBSVM_Reader(object):
 			self.data_df["doc_labels"] = self.all_y  
 			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
 			for i in tqdm(self.data_df.index):
-				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[i], dtype=torch.float32, device = device)
+				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[i], dtype=torch.float32)
 				self.data_df.at[i, "doc_id"] = i
 		else:
 			# 10% of the original data
-			orig_data = round(len(self.all_y) * subsample)
+			orig_data = round(len(self.all_y) * self.subsample)
 			sample_ids = sample(range(len(self.all_y)), orig_data)
 			temp_labels = [self.all_y[i] for i in sample_ids]
 			self.data_df["doc_labels"] = temp_labels
@@ -338,11 +374,16 @@ class CSV_Reader(object):
 			self.data_df["doc_labels"] = read_df["topic_ids"]
 			self.data_df["doc_vector"] = read_df["vec"]
 
+		self.data_df = self.data_df.dropna()
+		
 		if self.subsample:
 			orig_data = round(len(self.data_df) * 0.1)
 			sample_ids = np.random.choice(self.data_df.index, size = orig_data, replace=False)
 			self.data_df = self.data_df.iloc[sample_ids, ]
 
+		self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: ast.literal_eval(x))
+		self.data_df["doc_vector"] = self.data_df["doc_vector"].apply(lambda x: np.fromstring(x.strip().replace("\n", " ").strip().replace("[", "").strip().replace("]", ""), sep=' '))
+		self.data_df["doc_vector"] = self.data_df["doc_vector"].apply(lambda x: torch.as_tensor(x, device=device, dtype=torch.float32))
 		return self.data_df
 
 	def label_to_doc_mapping(self):
@@ -402,7 +443,7 @@ class OmniscienceReader(object):
 		return self.om_df
 
 
-	def get_text(df):
+	def get_text(self, df):
 	
 		name = df.iloc[0]["category"]	
 		fname = "{}_raw.txt".format(name)
@@ -418,7 +459,7 @@ class OmniscienceReader(object):
 		return name, fname
 
 
-	def fasttext_generator(prefix, name, fname):
+	def fasttext_generator(self, prefix, name, fname):
 
 		filename = "{}/{}.model".format(prefix, name)
 
@@ -446,8 +487,8 @@ class OmniscienceReader(object):
 			gkeys = list(grouped.groups.keys())
 			group_dfs = [grouped.get_group(tag) for tag in gkeys]
 			for df in group_dfs:
-				name, fname = get_text(df)
-				model = fasttext_generator(prefix, name, fname)
+				name, fname = self.get_text(df)
+				model = self.fasttext_generator(prefix, name, fname)
 				
 				temp_col = []
 				for sent in tqdm(FTextIter(fname)):

@@ -58,7 +58,9 @@ class HierarchyUtils(object):
 		
 		self.hier_obj = hierarchy2graph(self.parent2child_table, self.node2id, self.directed)
 		self.W = torch.nn.init.xavier_normal_(torch.empty(*self.num_features))
-		_ = self.generate_vectors(neighbours=False)
+		
+		if self.num_features:
+			_ = self.generate_vectors(neighbours=False)
 
 
 	def graph_checker(self):

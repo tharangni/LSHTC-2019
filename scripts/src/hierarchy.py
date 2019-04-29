@@ -5,7 +5,7 @@ import numpy as np
 import igraph as ig
 import pandas as pd
 
-from tqdm import tqdm 
+from tqdm import tqdm_notebook as tqdm 
 from pathlib import Path
 from joblib import Memory
 
@@ -22,7 +22,6 @@ def lookup_table(filename, subset):
 	12345 23456
 	12345 34567
 	the first number represents parent and the number following it represents child
-	- check for file type: if DAG, then convert it to tree - i.e all p2c, c2p etc
 	'''
 	
 	p2c_table = {}

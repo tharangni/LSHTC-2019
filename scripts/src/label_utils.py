@@ -4,8 +4,8 @@ import random
 import logging
 import networkx as nx
 
-from scripts.src.hierarchy import *
-from scripts.src.processing import *
+from hierarchy import *
+from processing import *
 logging.basicConfig(level=logging.INFO)
 
 num_gpus = torch.cuda.device_count()
@@ -35,7 +35,7 @@ class HierarchyUtils(object):
 		
 		self.category_file = category_file
 		
-		self.graph_checker()
+# 		self.graph_checker()
 		
 		self.is_text = is_text
 		
@@ -51,16 +51,14 @@ class HierarchyUtils(object):
 		self.pi_parents = lookup["pi_parents"]
 		self.T_leaves = lookup["T_leaves"]
 		self.N_all_nodes = lookup["N_all_nodes"]
-		
+		self.directed = True
 		self.num_features = [num_features, len(self.N_all_nodes)]
 
 		self.hier_type = hierarchy_type(self.child2parent_table)
 		
 		self.hier_obj = hierarchy2graph(self.parent2child_table, self.node2id, self.directed)
 		self.W = torch.nn.init.xavier_normal_(torch.empty(*self.num_features))
-		
-		if self.num_features:
-			_ = self.generate_vectors(neighbours=False)
+		self.W_nodes = self.generate_vectors(neighbours=False)
 
 
 	def graph_checker(self):
@@ -141,9 +139,9 @@ class HierarchyUtils(object):
 		visited[s] = True
 		
 		if self.id2node[s] not in node2vec:
-			root_vector = torch.randn(n[0], 1)
+			root_vector = torch.randn((1,self.num_features[1]), device = 'cpu')
 			root_vector = torch.nn.init.xavier_normal_(root_vector).squeeze()
-			self.W[:,s] = root_vector
+# 			self.W[:,s] = root_vector
 			node2vec[self.id2node[s]] = root_vector
 
 		while queue: 
@@ -159,7 +157,7 @@ class HierarchyUtils(object):
 					if self.id2node[i] not in node2vec:
 						rand = random.uniform(0.0001, 0.0005)
 						vec = node2vec[self.id2node[s]] + rand
-						self.W[:, i] = vec
+# 						self.W[:, i] = vec
 						node2vec[self.id2node[i]] = vec
 
 		if only_nodes:

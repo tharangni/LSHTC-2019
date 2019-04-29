@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from tqdm import tqdm 
+from tqdm import tqdm_notebook as tqdm 
 from pathlib import Path
 from joblib import Memory
 from random import sample
@@ -32,6 +32,11 @@ from gensim.parsing.preprocessing import preprocess_string
 num_gpus = torch.cuda.device_count()
 device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")
 
+if torch.cuda.is_available():
+	torch.Tensor = torch.cuda.FloatTensor
+else:
+	torch.Tensor = torch.FloatTensor
+
 
 mem = Memory("./mycache_getdata")
 @mem.cache
@@ -43,7 +48,7 @@ def lower_dim(file_path, reduce, n_components):
 	if reduce:
 		new_data = call_svd(data[0], n_components)
 	else:
-		new_data = data[0]
+		new_data = data[0].todense()
 
 	lbin = MultiLabelBinarizer(sparse_output=True)
 	label_matrix = lbin.fit_transform(data[1])
@@ -74,7 +79,8 @@ def get_data(filename):
 	fe, ex = os.path.splitext(fname) 
 
 	try:
-		data = load_svmlight_file(fname,  multilabel=True)
+# 		data = load_svmlight_file(fname,  multilabel=True)
+		data = read_svmlight_file(fname, None)
 	except:
 		# Required: if the input data isn't in the correct libsvm format
 		outfile = str(Path("{}_small{}".format(fe, ex)))
@@ -98,7 +104,7 @@ def read_svmlight_file(file_path, n_features):
 		data_indices = list()
 		data = list()
 		labels = []
-		for line in tqdm(fin):
+		for line in (fin):
 			lbl_feat_str, sep, comment = line.strip().partition("#")
 			tokens1 = lbl_feat_str.split(',')
 			tokens2 = tokens1[-1].split()
@@ -109,14 +115,17 @@ def read_svmlight_file(file_path, n_features):
 			features = tokens2[1:]
 			for f in features:
 				fid, fval = f.split(':')
-				data_indices.append([line_index, int(fid)-1])
+				data_indices.append([line_index, int(fid)]) #-1])
 				data.append(float(fval))
 			line_index += 1
 
 	n_feat = max(np.array(data)).astype(int) + 1
 
-	print("data {}".format(n_feat))
+# 	print("data {}".format(n_feat))
 
+	assert np.all(np.array(data) >= 0)
+	assert np.all(np.array(data_indices) >= 0)
+	
 	if n_features == None:
 		X = csr_matrix((np.array(data), np.array(data_indices).T))
 	else:
@@ -260,23 +269,27 @@ class LIBSVM_Reader(object):
 
 	def view_df(self):
 
-		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector", "y_true"])
-
+		self.data_df = pd.DataFrame(columns = ["doc_id", "doc_labels", "doc_vector", "label_vec"])
+        
 		if not self.subsample:
 			self.data_df["doc_labels"] = self.all_y  
 			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
 			for i in tqdm(self.data_df.index):
-				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[i], dtype=torch.float32)
+# 				temp = self.label_matrix[i].toarray().squeeze()
+# 				self.data_df.at[i, "label_vec"] = temp                
+				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[i], device=device, dtype=torch.float32)
 				self.data_df.at[i, "doc_id"] = i
 		else:
 			# 10% of the original data
 			orig_data = round(len(self.all_y) * self.subsample)
 			sample_ids = sample(range(len(self.all_y)), orig_data)
+			sample_ids = range(orig_data)
 			temp_labels = [self.all_y[i] for i in sample_ids]
 			self.data_df["doc_labels"] = temp_labels
 			self.data_df["doc_labels"] = self.data_df["doc_labels"].apply(lambda x: list(map(int, x)))  
 			for i, j in tqdm(enumerate(sample_ids)):
-				self.data_df.at[i, "doc_vector"] = torch.as_tensor(self.all_x[j], dtype=torch.float32, device =device)
+				self.data_df.at[i, "doc_vector"] = self.all_x[j]
+				self.data_df.at[i, "label_vec"] = self.label_matrix[j].toarray()
 				self.data_df.at[i, "doc_id"] = i
 
 		return self.data_df

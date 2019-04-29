@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import pandas as pd
 
-from tqdm import tqdm 
+from tqdm import tqdm_notebook as tqdm
 from pathlib import Path
 from random import sample
 from collections import OrderedDict, Counter
@@ -36,19 +36,38 @@ def list2tensor(inp_list):
 	'''
 	converts list to tensor
 	'''
-	list_tensors = list(map(torch.Tensor, inp_list))
+	num_gpus = torch.cuda.device_count()
+	device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")
+ 
+	list_tensors = list(map(torch.FloatTensor, inp_list))
 	out_tensor = torch.stack(list_tensors, dim=0)
-
+# 	out_tensor = torch.cat(list_tensors, -1)
+	out_tensor.to(device)
 	return out_tensor
 
 
+def list2tensor_cat(inp_list):
+	'''
+	converts list to tensor
+	'''
+	num_gpus = torch.cuda.device_count()
+	device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")
+ 
+	list_tensors = list(map(torch.FloatTensor, inp_list))
+# 	out_tensor = torch.stack(list_tensors, dim=0)
+	out_tensor = torch.cat(list_tensors, 0)
+	out_tensor.to(device)
+	return out_tensor
 
-def generate_binary_yin(N_all_nodes, device):
+
+def generate_binary_yin(N_all_nodes):
 	'''
 	Alternate method to generate y_in values. If a node n belongs to an 
 	instance i, it accesses the respective 16-bit binary {-1, +1} representation 
 	of that node-number (from order_mapping fn) as the respective y_in.
 	'''
+	num_gpus = torch.cuda.device_count()
+	device = torch.device("cuda" if (torch.cuda.is_available() and num_gpus > 0) else "cpu")    
 	all_16 = []
 	for i in tqdm(range(1, len(N_all_nodes)+1)):
 		bin_rep = bin(i)[2:]
@@ -57,7 +76,7 @@ def generate_binary_yin(N_all_nodes, device):
 		all_16.append(list_16)
 
 	t_16 = list2tensor(all_16)
-	y_in_dash = torch.as_tensor(np.where(t_16.numpy() > 0, 1.0, -1.0), device = device, dtype = torch.float32)
+	y_in_dash = torch.as_tensor(np.where(t_16.cpu().numpy() > 0, 1.0, -1.0), device = device, dtype = torch.float32)
 	
 	return y_in_dash
 

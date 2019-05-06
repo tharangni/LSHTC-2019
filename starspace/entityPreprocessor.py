@@ -59,7 +59,8 @@ class EntityProcessor(object):
 				row_appender = []
 				for i, lines in enumerate(reader):
 					new_line = lines.strip().split(' ')
-					row_appender.append(new_line)
+					new_ = [new_line[0], new_line[1]]
+					row_appender.append(new_)
 
 			cat = pd.DataFrame(row_appender, columns=["parent", "child"])
 			cat.to_csv(csv_file, index=False)
@@ -142,9 +143,9 @@ class EntityProcessor(object):
 					parent = str(split_line[0])
 					child = str(split_line[1])
 
-				parent_of = "parent-of \t __label__{} \t __label__{}\n".format(parent, child)
+				parent_of = "parent-of \t __label__A{} \t __label__A{}\n".format(parent, child)
 				fin.write(parent_of)
-				child_of = "child-of \t __label__{} \t __label__{}\n".format(child, parent)
+				child_of = "child-of \t __label__A{} \t __label__A{}\n".format(child, parent)
 				fin.write(child_of)
 
 			fin.close()
@@ -215,6 +216,10 @@ class EntityProcessor(object):
 if __name__=="__main__":
 	path = os.path.relpath(path="../../../Starspace/data/oms/cat_hier.txt")
 	T = EntityProcessor(path, '#')
+	T.fasttextConverter()
+
+	path = os.path.relpath(path="../../../Starspace/data/raw-swiki/cat_hier.txt")
+	T = EntityProcessor(path, ' ')
 	T.fasttextConverter()
 	# print(T.H.draw_graph())
 

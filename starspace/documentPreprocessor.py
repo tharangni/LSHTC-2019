@@ -206,5 +206,6 @@ def oms_main(main_path):
 
 
 if __name__ == '__main__':
-	# swiki_converter("../raw-swiki/train/swiki-train.txt")
-	oms_main("../OmniScience/original/ArXiv_BMED_Evise_title_abstract_os.2018-07-11.tsv")
+	swiki_converter("../../../Starspace/data/raw-swiki/text/swiki-train.txt")
+	swiki_converter("../../../Starspace/data/raw-swiki/text/swiki-test.txt")
+	oms_main("../../../Starspace/data/oms/text/oms.tsv")

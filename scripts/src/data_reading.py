@@ -79,11 +79,11 @@ def get_data(filename):
 	fe, ex = os.path.splitext(fname) 
 
 	try:
-# 		data = load_svmlight_file(fname,  multilabel=True)
-		data = read_svmlight_file(fname, None)
+		data = load_svmlight_file(fname,  multilabel=True)
+		# data = read_svmlight_file(fname, None)
 	except:
 		# Required: if the input data isn't in the correct libsvm format
-		outfile = str(Path("{}_small{}".format(fe, ex)))
+		outfile = str(Path("{}_edit{}".format(fe, ex)))
 		if not os.path.isfile(outfile):
 			logging.info("Remapping data to LibSVM format...")
 			f = preprocess_libsvm(fname, outfile)
@@ -526,3 +526,8 @@ class OmniscienceReader(object):
 
 		return new_df
 
+
+if __name__ == '__main__':
+	a, b = get_data("C:/Users/harshasivajit/Documents/master-ai/rr13/lshtc-small/t4/train.txt")
+	a, b = get_data("C:/Users/harshasivajit/Documents/master-ai/rr13/lshtc-small/t4/validation.txt")
+	a, b = get_data("C:/Users/harshasivajit/Documents/master-ai/rr13/lshtc-small/t4/test.txt")

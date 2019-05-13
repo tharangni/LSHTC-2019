@@ -96,6 +96,17 @@ class EntityProcessor(object):
 				nx.write_graphml(arb_graph, self.gml_file)
 				self.Graph = arb_graph
 
+		# getting root
+		in_degree = nx.in_degree_centrality(self.Graph)
+
+		root = []
+
+		min_v = min(in_degree.values())
+		for k, v in in_degree.items():
+			if v == min_v:
+				root.append(k)
+		self.root = root
+
 
 	def reduceToOutBound(self):
 		
@@ -122,10 +133,23 @@ class EntityProcessor(object):
 		self.edgelist_file = new_f
 
 
+
+	def tm2Converter(self):
+		u = {}
+		for r in root:
+			c = nx.traversal.dfs_preorder_nodes(G, r, 1)
+			if r not in u:
+				u[r] = list(c)
+				for i in u[r]:
+					if i not in root:
+						root.append(i)
+
+
 	def fasttextConverter(self):
 		logging.info("--Beginning conversion--")
 		fe, ex = os.path.splitext(self.edgelist_file)
 		new_f = "{}_fasttext{}".format(fe, ex)
+
 
 
 		if self.delim != '#':
@@ -143,10 +167,12 @@ class EntityProcessor(object):
 					parent = str(split_line[0])
 					child = str(split_line[1])
 
-				parent_of = "parent-of \t __label__A{} \t __label__A{}\n".format(parent, child)
+				# parent_of = "parent-of \t __label__{} \t __label__A{}\n".format(parent, child)
+				parent_of = "__label__Q{}R , __label__Q{}R\n".format(parent, child)
 				fin.write(parent_of)
-				child_of = "child-of \t __label__A{} \t __label__A{}\n".format(child, parent)
-				fin.write(child_of)
+				
+				# child_of = "child-of \t __label__{} \t __label__A{}\n".format(child, parent)
+				# fin.write(child_of)
 
 			fin.close()
 
@@ -158,18 +184,29 @@ class EntityProcessor(object):
 
 			for i, line in enumerate(reader):
 				line = line.decode('utf-8')
-				split_line = line.strip().split(' ')
 				try:
-					parent = int(split_line[0])
-					child = int(split_line[1])
-				except:
-					parent = str(split_line[0])
-					child = str(split_line[1])
+					split_line = line.strip().split(self.delim)
+					try:
+						parent = int(split_line[0])
+						child = int(split_line[1])
+					except:
+						parent = str(split_line[0])
+						child = str(split_line[1])
 
-				parent_of = "parent-of \t __label__{} \t __label__{}\n".format(parent, child)
+				except:
+					split_line = line.strip().split(' ')
+					try:
+						parent = int(split_line[0])
+						child = int(split_line[1])
+					except:
+						parent = str(split_line[0])
+						child = str(split_line[1])
+
+				# parent_of = "parent-of \t __label__{} \t __label__{}\n".format(parent, child)
+				parent_of = "__label__{} , __label__{}\n".format(parent, child)
 				fin.write(parent_of.encode('utf-8'))
-				child_of = "child-of \t __label__{} \t __label__{}\n".format(child, parent)
-				fin.write(child_of.encode('utf-8'))
+				# child_of = "child-of \t __label__{} \t __label__{}\n".format(child, parent)
+				# fin.write(child_of.encode('utf-8'))
 
 			fin.close()
 
@@ -214,15 +251,18 @@ class EntityProcessor(object):
 
 
 if __name__=="__main__":
-	path = os.path.relpath(path="../../../Starspace/data/oms/cat_hier.txt")
-	T = EntityProcessor(path, '#')
-	T.fasttextConverter()
+	# path = "../../../Starspace/data/food/cat_hier.txt"
+	# T = EntityProcessor(path, '#')
+	# T.fasttextConverter()
 
-	path = os.path.relpath(path="../../../Starspace/data/raw-swiki/cat_hier.txt")
+	# path = os.path.relpath(path="../../../Starspace/data/oms/cat_hier.txt")
+	# T = EntityProcessor(path, '#')
+	# T.fasttextConverter()
+
+	path = os.path.relpath(path="../../../Starspace/data/swiki/cat_hier.txt")
 	T = EntityProcessor(path, ' ')
 	T.fasttextConverter()
 	# print(T.H.draw_graph())
 
 # notes to see if it actually works on datasets:
-# 1. raw swiki: yes (parent-of, child-of) relations
-# 2. omniscience (full category): 
+# run separate experiments on the label hierarchy alone to see how it performs

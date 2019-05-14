@@ -117,6 +117,7 @@ class LogisticBase(object):
         self.W = self.W.flatten()
         self.W_prev = self.W_prev.flatten()
 
+        print("LBFGS")
         self.W, fvalue, d  = scipy.optimize.fmin_l_bfgs_b(
                     self._function_value,
                     self.W,

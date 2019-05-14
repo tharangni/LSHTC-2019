@@ -44,6 +44,8 @@ class LogisticCost(LogisticBase):
         loss = np.sum(loss_vector)
         value = loss + self.rho*regularizer
 
+        print(value)
+
         return value
 
     def _gradient(self, W, X, Y):

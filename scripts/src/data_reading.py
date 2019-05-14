@@ -443,16 +443,22 @@ class OmniscienceReader(object):
 		self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
 		self.om_df = self.om_df.dropna()
 
+		self.om_df = self.om_df.rename(index=str, columns={"conceptid": "omniscience_label_ids", "label": "omniscience_labels"})
 		self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: ast.literal_eval(x) )
 		self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: ast.literal_eval(x) )
 		self.om_df["category"] = self.om_df["file_id"].apply(lambda x: x.split(":")[0])
 		self.om_df["doc_id"] = 0
+		
+		self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: [item.replace(" ","-") for item in x])
+		self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: tuple(set(x)))
+		self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: tuple(set(x)))
 
 		for i in tqdm(self.om_df.index):
 			self.om_df.at[i, "doc_id"] = i
 			if self.om_df.at[i, "category"] == "EVISE.PII":
 				self.om_df.at[i, "omniscience_label_ids"] = list(map(int, self.om_df.at[i, "omniscience_label_ids"][0]))
-
+		
+		self.om_df = self.om_df.dropna()
 		return self.om_df
 
 
@@ -528,6 +534,5 @@ class OmniscienceReader(object):
 
 
 if __name__ == '__main__':
-	a, b = get_data("C:/Users/harshasivajit/Documents/master-ai/rr13/lshtc-small/t4/train.txt")
-	a, b = get_data("C:/Users/harshasivajit/Documents/master-ai/rr13/lshtc-small/t4/validation.txt")
-	a, b = get_data("C:/Users/harshasivajit/Documents/master-ai/rr13/lshtc-small/t4/test.txt")
+	o = OmniscienceReader("C:/Users/harshasivajit/Documents/master-ai/rr13/OmniScience/original/ArXiv_BMED_Evise_title_abstract_os.2018-07-11.tsv")
+	new_df = o.gen_doc2vec("C:/Users/harshasivajit/Documents/master-ai/rr13/OmniScience/Fasttext")

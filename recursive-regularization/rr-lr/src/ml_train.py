@@ -56,9 +56,18 @@ def training_main(train_node, label_matrix, lbin, X, labels_train,
 def main(args):
 
     mkdir_if_not_exists(args.model_dir)
-    graph = safe_read_graph(args.hierarchy)
-    X_train, labels_train = safe_read_svmlight_file_multilabel(
-             args.dataset, args.features)
+
+    if "npy" not in args.dataset:
+        graph = safe_read_graph(args.hierarchy)
+        X_train, labels_train = safe_read_svmlight_file_multilabel(
+                 args.dataset, args.features)
+    else:
+        graph = safe_read_graphml(args.hierarchy)
+        fe, ex = os.path.splitext(args.dataset)
+        temp = "".join(fe.split("_")[0])
+        label_path = "{}_labels{}".format(temp, ex)
+        X_train, labels_train = read_embeddings(args.dataset, label_path)
+
     lbin = MultiLabelBinarizer(sparse_output=True)
     label_matrix = lbin.fit_transform(labels_train)
 
@@ -88,7 +97,7 @@ def main(args):
             mod_cn = np.zeros(2)
 
             for p in list(graph.predecessors(train_node)):
-                print('Parent of {} node is: {}'.format(train_node, p))
+                # print('Parent of {} node is: {}'.format(train_node, p))
                 w_pi = w_dict[p]
 
             updated_Wn = train_and_output_model(X_train, y_node, 

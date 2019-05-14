@@ -89,9 +89,25 @@ def dump_svmlight_file_multilabel(X, y, file_path):
 
 
 @safe_operation
+@mem.cache
+def read_embeddings(data_path, label_path):
+    '''Read data (npy) saved as fasttext embeddings'''
+    X_ = np.load(data_path)
+    X = csr_matrix(X_)
+    labels = np.load(label_path)
+    del X_
+
+    return X, labels
+
+@safe_operation
 def safe_read_graph(graph_path):
     '''Load a networkx.DiGraph from a file in edgelist format'''
     return  nx.read_edgelist(graph_path, create_using=nx.DiGraph(),nodetype=int)
+
+@safe_operation
+def safe_read_graphml(graph_path):
+    '''Load a networkx.DiGraph from a file in graphml format'''
+    return nx.read_graphml(graph_path)
 
 @safe_operation
 def safe_read_svmlight_file_multilabel(data_path, num_features=None):

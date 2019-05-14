@@ -4,8 +4,8 @@ import random
 import logging
 import networkx as nx
 
-from hierarchy import *
-from processing import *
+from scripts.src.hierarchy import *
+from scripts.src.processing import *
 logging.basicConfig(level=logging.INFO)
 
 num_gpus = torch.cuda.device_count()

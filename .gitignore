@@ -13,6 +13,7 @@
 
 # Byte-compiled / optimized / DLL files
 recursive-regularization/rr-lr/src/__pycache__/*
+recursive-regularization/rr-lr/data/oms/*
 __pycache__/
 *.py[cod]
 *$py.class

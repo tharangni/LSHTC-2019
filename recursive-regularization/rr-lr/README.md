@@ -1,6 +1,6 @@
 Recursive Regularization (RR)
 -----------------------------
-RR is based on the works of [1]. HierCost is based on RR and I modified the base code of HierCost by adding recursive regularization. The original code for RR is available in Java (https://github.com/gcdart/MulticlassClassifier). This was done to **reproduce** results for my baseline during my master thesis research.
+RR is based on the works of [1]. HierCost is based on RR and I modified the base code of HierCost by adding recursive regularization. The original code for RR is available in Java (https://github.com/gcdart/MulticlassClassifier). This work was done to **reproduce** results for my baseline during my master thesis research.
 
 
 HierCost

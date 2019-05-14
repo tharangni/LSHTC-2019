@@ -59,9 +59,17 @@ def main(args):
     '''
 
     mkdir_if_not_exists(args.model_dir)
-    graph = safe_read_graph(args.hierarchy)
-    X_train, labels_train = safe_read_svmlight_file(
-            args.dataset, args.features)
+
+    if "npy" not in args.dataset:
+        graph = safe_read_graph(args.hierarchy)
+        X_train, labels_train = safe_read_svmlight_file_multilabel(
+                 args.dataset, args.features)
+    else:
+        graph = safe_read_graphml(args.hierarchy)
+        fe, ex = os.path.splitext(args.dataset)
+        temp = "".join(fe.split("_")[0])
+        label_path = "{}_labels{}".format(temp, ex)
+        X_train, labels_train = read_embeddings(args.dataset, label_path)
 
     if args.nodes:
         train_node_list = [int(n) for n in args.nodes.split(",")]
@@ -135,10 +143,4 @@ def main(args):
             w_dict[root] = updated_Wn
         except:
             print(root, "has no samples (X)")
-
-
-    # for train_node in train_node_list:
-    #     model_save_path = '{}/model_{}.p'.format(args.model_dir, train_node)
-    #     train_and_output_model(X_train, labels_train, train_node, graph,
-    #             args.cost_type, args.imbalance, args.rho, model_save_path)
 

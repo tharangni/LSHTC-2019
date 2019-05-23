@@ -34,7 +34,7 @@ class LogisticCost(LogisticBase):
             super(LogisticCost, self).optimize_objective_non_leaf(X, y)
 
         del self.cost_vector
-
+        
     def _function_value(self, W, X, Y):
         '''Compute objective function value'''
         regularizer = np.linalg.norm(W-self.W_prev)**2
@@ -44,9 +44,8 @@ class LogisticCost(LogisticBase):
         loss = np.sum(loss_vector)
         value = loss + self.rho*regularizer
 
-        print(value)
-
         return value
+
 
     def _gradient(self, W, X, Y):
         W.shape = (X.shape[1], Y.shape[1])
@@ -58,7 +57,6 @@ class LogisticCost(LogisticBase):
         # gradient = grad_loss 
         # gradient = grad_loss + 2*self.rho*W
         gradient = grad_loss + self.rho*2*(W-self.W_prev)
-        
         if self.solver == 'lbfgs':
             W.shape = (X.shape[1]*Y.shape[1])
             self.W_prev.shape = (X.shape[1]*Y.shape[1])

@@ -7,6 +7,8 @@ import pandas as pd
 import warnings
 from sklearn import preprocessing
 
+np.random.seed(12345678)
+
 class LogisticBase(object):
 
     def __init__(self, rho, w_n, w_pi, children, mod_cn,
@@ -60,7 +62,8 @@ class LogisticBase(object):
         num_tasks = len(class_labels)
         num_examples = y.shape[0]
         if num_tasks == 1:
-            raise ValueError("The number of classes has to be greater than one.")
+            class_labels = np.array([-1, -1])
+#             raise ValueError("The number of classes has to be greater than one.")
         elif num_tasks == 2:
             if 1 in class_labels and -1 in class_labels:
                 num_tasks = 1
@@ -82,10 +85,11 @@ class LogisticBase(object):
         X = self.append_unit_column(X)
         Y, self.labels, num_tasks = self._check_data(y)
         num_examples, num_features = X.shape
-
+                
         self.W.shape = (num_features, num_tasks)
         self.W_prev.shape = (num_features, num_tasks)
-
+        self.children.shape = (num_features, num_tasks)
+       
         self.W = (self.W_prev + self.children)/(self.len_cn + 1)
         
         if self.fit_intercept:
@@ -108,7 +112,6 @@ class LogisticBase(object):
     def optimize_objective_lbfgs(self, X, y):
         '''Train the model'''
 
-
         X = self.append_unit_column(X)
         Y, self.labels, num_tasks = self._check_data(y)
         num_examples, num_features = X.shape
@@ -117,14 +120,13 @@ class LogisticBase(object):
         self.W = self.W.flatten()
         self.W_prev = self.W_prev.flatten()
 
-        print("LBFGS")
         self.W, fvalue, d  = scipy.optimize.fmin_l_bfgs_b(
                     self._function_value,
                     self.W,
                     fprime=self._gradient,
                     args = (X, Y),
                     maxiter=50)
-
+        
         self.W.shape = (num_features, num_tasks)
         self.W_prev.shape = (num_features, num_tasks)
 
@@ -226,6 +228,7 @@ class LogisticBase(object):
         print(dataframe)
         pd.reset_option('display.max_rows')
 
+        
     def append_unit_column(self, X):
         '''Add unit column in the first position'''
         if hasattr(self,'feature_scaling'):
@@ -234,12 +237,15 @@ class LogisticBase(object):
         if self.fit_intercept:
             unit_col = self.intercept_scaling*np.ones((X.shape[0], 1))
         newX = (scipy.sparse.hstack((unit_col, X))).tocsr()
+#         newX = np.hstack((unit_col, X))
         return newX
 
+    
     def sparsify(self):
         self.coef_ = scipy.sparse.csc_matrix(self.coef_)
         self.is_sparse = True
 
+        
     def decision_function(self, X):
         '''scores of each instance w.r.t. each class'''
         score = X.dot(self.coef_) + self.intercept_
@@ -249,6 +255,7 @@ class LogisticBase(object):
             score = score.flatten()
         return score
 
+    
     def predict(self, X):
         '''predict the labels of each instance'''
         scores = self.decision_function(X)
@@ -263,12 +270,14 @@ class LogisticBase(object):
 
         return y_pred.flatten()
 
+    
     def score(self, X, y):
         '''Returns the mean accuracy on the given test data and labels.'''
         y_pred = self.predict(X)
         y_arr = np.array(y)
         return np.mean(y_arr == y_pred)
 
+    
     def predict_proba(self, X):
         """Probability estimation for OvR logistic regression.
 
@@ -288,6 +297,7 @@ class LogisticBase(object):
             prob /= prob.sum(axis=1).reshape((prob.shape[0], -1))
             return prob
 
+        
     def _log_loss(self, X, Y, W):
         '''Computes logistic loss vector
 

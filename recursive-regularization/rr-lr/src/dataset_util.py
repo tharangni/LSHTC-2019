@@ -9,6 +9,7 @@ import os.path
 from scipy.sparse import csr_matrix
 mem = Memory("./mycache")
 
+np.random.seed(12345678)
 
 def mkdir_if_not_exists(dir_path):
     try:
@@ -89,12 +90,13 @@ def dump_svmlight_file_multilabel(X, y, file_path):
 
 
 @safe_operation
-@mem.cache
+# @mem.cache
 def read_embeddings(data_path, label_path):
     '''Read data (npy) saved as fasttext embeddings'''
     X_ = np.load(data_path)
-    X = csr_matrix(X_)
+    X = csr_matrix(X_.item())
     labels = np.load(label_path)
+    labels = labels.tolist()
     del X_
 
     return X, labels
@@ -107,7 +109,7 @@ def safe_read_graph(graph_path):
 @safe_operation
 def safe_read_graphml(graph_path):
     '''Load a networkx.DiGraph from a file in graphml format'''
-    return nx.read_graphml(graph_path)
+    return nx.read_graphml(graph_path, node_type=int)
 
 @safe_operation
 def safe_read_svmlight_file_multilabel(data_path, num_features=None):
@@ -121,7 +123,7 @@ def safe_read_svmlight_file(data_path, num_features=None):
     return X, y
 
 
-@safe_operation
+# @safe_operation
 def safe_pickle_load(pickle_path):
     '''Reads a pickled object from file'''
     with open( pickle_path, "rb" ) as fin:

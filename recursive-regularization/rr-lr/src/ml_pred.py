@@ -14,6 +14,7 @@ import numpy as np
 import networkx as nx
 from sklearn.metrics import f1_score, classification_report
 from dataset_util import *
+from tqdm import tqdm
 import scipy.sparse
 from sklearn.preprocessing import MultiLabelBinarizer
 import warnings
@@ -36,7 +37,6 @@ def pred_multilabel(X_test, model_dir, target_names):
     num_examples = X_test.shape[0]
     y_pred = scipy.sparse.dok_matrix((num_examples, len(target_names)))
     target_names = target_names.astype(int)
-    print(target_names)
 
     for idx, node in enumerate(target_names):
         model_save_path = '{}/model_h_{}.p'.format(
@@ -68,7 +68,15 @@ def main(args):
         - obtain predictions for test set and write them to a file.
     '''
 
-    X_test, y_test = safe_read_svmlight_file_multilabel(args.dataset, args.features)
+    if "npy" not in args.dataset:
+        X_test, y_test = safe_read_svmlight_file_multilabel(
+                 args.dataset, args.features)
+    else:
+        fe, ex = os.path.splitext(args.dataset)
+        temp = "".join(fe.split("_")[0])
+        label_path = "{}_labels{}".format(temp, ex)
+        X_test, y_test = read_embeddings(args.dataset, label_path)
+    
     lbin = MultiLabelBinarizer(sparse_output=True)
     y_test_mat = lbin.fit_transform(y_test)
 
@@ -86,4 +94,3 @@ def main(args):
         print("Micro-F1 = {:.5f}".format(micro_f1))
         print("Macro-F1 = {:.5f}".format(macro_f1))
         # print(classification_report(y_test_mat, y_pred_mat))
-

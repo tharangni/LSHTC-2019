@@ -13,44 +13,27 @@ np.random.seed(12345678)
 
 def get_root(graph):
 
-    in_degree = nx.in_degree_centrality(graph)
-
-    root = []
-
-    min_v = min(in_degree.values())
-    for k, v in in_degree.items():
-        if v == min_v:
-            root.append(k)
-
+    root = [n for n in graph.nodes() if len(list(graph.predecessors(n)))==0][0]
     return root
 
-def get_level_nodes(graph, train_node_list):
+def get_level_nodes(graph, others):
+
+    d = {}
+    root = get_root(graph)
+
+    for i, j in enumerate(others):
+        p = nx.shortest_path_length(graph, source=root, target = j)
+        if p not in d:
+            d[p] = [j]
+        else:
+            d[p].append(j)
     
-    temp = []
-    top_level = []
-    internal_levels = []
+    h = sorted(d.items(), key=lambda x: x[0], reverse=True) # [(2, [3, 4, 5, 6]), (1, [1, 2]), (0, [0])]
     
-    while len(train_node_list) > 0:
-        pred = []
-        for leaves in train_node_list:
-            if len(list(graph.predecessors(leaves)))>0:
-                level_up = list(graph.predecessors(leaves))
-                for n in level_up:
-                    if n not in pred:
-                        pred.append(n)
-            else:
-                if leaves not in top_level:
-                    top_level.append(leaves)            
-        train_node_list = pred
-        temp.append(train_node_list)
-
-
-    set_r = set(top_level)
-    for level in temp:
-        new_l = set(level) - set_r
-        if len(new_l) > 0:
-            internal_levels.append(list(new_l))         
-
+    top_level = root # (0, [0]) -> [0]
+    
+    internal_levels = [j for i, j in h] # [(2, [3, 4, 5, 6]), (1, [1, 2])] -> [[3, 4, 5, 6], [1, 2]] by default in a bottom-up level order
+    
     return top_level, internal_levels
 
 
@@ -65,23 +48,36 @@ def init_recursive_regularizer(graph, features):
     return w_dict
 
 
-def non_leaf_update(parents, children, w_dict):
+def non_leaf_update(parents, children, w_dict, features):
     
-    sum_pi = 0
-    sum_c = 0
+    sum_pi = np.zeros(features,)
+    sum_c = np.zeros(features,)
     
     len_cn = len(children)
     
     if len(parents) > 0:
             
         for p in parents:
-            sum_pi+=w_dict[p]
+            if isinstance(w_dict[p], np.ndarray):
+                sum_pi+=w_dict[p]
+            else:
+                sum_pi+=0
             
         for c in children:
-            sum_c+=w_dict[c]
+            if isinstance(w_dict[c], np.ndarray):
+                # print(w_dict[c].shape)
+                sum_c+=w_dict[c]
+                sum_c = sum_c.squeeze()
+            else:
+                sum_c+=0
+                
             
     else:
         for c in children:
-            sum_c+=w_dict[c]
+            if isinstance(w_dict[c], np.ndarray):
+                sum_c+=w_dict[c]
+                sum_c = sum_c.squeeze()
+            else:
+                sum_c+=0
     
     return len_cn, sum_c, sum_pi

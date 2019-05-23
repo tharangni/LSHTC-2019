@@ -115,6 +115,7 @@ class EntityProcessor(object):
         
         fe, ex = os.path.splitext(self.edgelist_file)
         new_f = "{}_dag2tree{}".format(fe, ex)
+        new_gml = "{}_dag2tree.graphml".format(fe)
         
         visited = Counter() 
         traversal = []
@@ -142,6 +143,7 @@ class EntityProcessor(object):
         self.Graph.add_edges_from(new_edges)
 
         nx.write_edgelist(self.Graph, new_f)
+        nx.write_graphml(self.Graph, new_gml)
         self.removeParantheses(new_f)
         self.edgelist_file = new_f
 
@@ -158,6 +160,7 @@ class EntityProcessor(object):
                 reader = fmain.readlines()
                 
             fin = open(new_f, "w+")
+            fin2 = open(rev_new_f, "w+")
 
             for i, line in enumerate(reader):
                 split_line = line.strip().split(' ')
@@ -169,13 +172,16 @@ class EntityProcessor(object):
                     child = str(split_line[1])
 
                 # parent_of = "parent-of \t __label__{} \t __label__A{}\n".format(parent, child)
-                parent_of = "__label__Q{}R , __label__Q{}R\n".format(parent, child)
+                parent_of = "__label__{} , __label__{}\n".format(parent, child)
+                child_of = "__label__{} , __label__{}\n".format(child, parent)
                 fin.write(parent_of)
+                fin2.write(child_of)
                 
                 # child_of = "child-of \t __label__{} \t __label__A{}\n".format(child, parent)
                 # fin.write(child_of)
 
             fin.close()
+            fin2.close()
 
         else:
             with open(self.edgelist_file, "rb") as fmain:
@@ -259,13 +265,17 @@ if __name__=="__main__":
     # T = EntityProcessor(path, '#')
     # T.fasttextConverter()
 
-    path = os.path.relpath(path="../../../Starspace/data/oms/cat_hier.txt")
-    T = EntityProcessor(path, '#')
-    T.fasttextConverter()
+    # path = os.path.relpath(path="../../../Starspace/data/oms/cat_hier.txt")
+    # T = EntityProcessor(path, '#')
+    # T.fasttextConverter()
 
     # path = os.path.relpath(path="../../../Starspace/data/oms/small_txt.txt")
     # T = EntityProcessor(path, '#')
     # T.fasttextConverter()
+
+    path = os.path.relpath(path="../OmniScience/original/os_tree_cat_hier.txt")
+    T = EntityProcessor(path, ' ')
+    T.fasttextConverter()
 
     # path = os.path.relpath(path="../../../Starspace/data/swiki/cat_hier.txt")
     # T = EntityProcessor(path, ' ')

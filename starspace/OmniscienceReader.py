@@ -1,10 +1,19 @@
 import ast
 import pandas as pd
 from tqdm import tqdm
+from gensim.parsing import preprocessing
+from gensim.utils import tokenize
+
+def document_preprocess(text):
+    first = text.encode('ascii', 'ignore').decode('utf-8').lower()
+    second = preprocessing.remove_stopwords(first)
+    third = preprocessing.strip_punctuation(second)
+    fourth = preprocessing.strip_short(preprocessing.strip_numeric(third))
+    return fourth
 
 class OmniscienceReader(object):
     """
-    docstring for OmniscienceReader
+    docstring for OmniscienceReader]
     [x] preprocess raw text: gensim preprocesser : stop words + stemming + lemma + tokenize + -num
     [x] raw text -> word2vec using fasttext
     [x] avg word2vec across docs to create doc2vec
@@ -16,21 +25,18 @@ class OmniscienceReader(object):
         self.preprocess()
 
     def preprocess(self):
-        self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
-        self.om_df = self.om_df.dropna()
+        temp = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
+        temp = temp.dropna()
 
-        self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: ast.literal_eval(x) )
-        self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: ast.literal_eval(x) )
+        # temp["doc"] = temp["abstract"].apply(lambda x: document_preprocess(x))
+        temp["doc"] = temp["abstract"].apply(lambda x: document_preprocess(x))
+        temp["label_id"] = temp["label_id"].apply(lambda x: ast.literal_eval(x))
+        temp["labels"] = temp["labels"].apply(lambda x: ast.literal_eval(x))
+        temp["labels"] = temp["labels"].apply(lambda x: [i.lower().replace(" ", "-") for i in x])
+
+        self.om_df = temp
         
-        # self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: list(set(x)))
-        self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: list(set(x)))
+        # self.om_df.to_csv(self.file_path, sep='\t', encoding='utf-8', index=False)
         
-        self.om_df["category"] = self.om_df["file_id"].apply(lambda x: x.split(":")[0])
-        self.om_df["doc_id"] = 0
-
-        for i in tqdm(self.om_df.index):
-            self.om_df.at[i, "doc_id"] = i
-            if self.om_df.at[i, "category"] == "EVISE.PII":
-                self.om_df.at[i, "omniscience_label_ids"] = list(map(int, self.om_df.at[i, "omniscience_label_ids"][0]))
-
         return self.om_df
+

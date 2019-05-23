@@ -13,7 +13,7 @@ def parse_pred_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-d", "--dataset", required=True, help="Test dataset path")
-    parser.add_argument("-f", "--features", required=True, help="Number of features", type=int)
+    parser.add_argument("-f", "--features", required=False, help="Number of features", type=int, default=None)
     parser.add_argument("-t", "--hierarchy", required=True, help="Hierarchy path")
     parser.add_argument("-m", "--model_dir", required=True, help="Model directory path")
     parser.add_argument("-u", "--multi", help="Hierarchical Multi-Label", action="store_true")

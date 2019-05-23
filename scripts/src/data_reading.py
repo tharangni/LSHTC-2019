@@ -26,6 +26,7 @@ from imblearn.over_sampling import RandomOverSampler, SMOTE
 
 from gensim.models.fasttext import FastText
 from gensim.parsing.preprocessing import preprocess_string
+from gensim.utils import tokenize
 
 # debugging ML code/NNs
 # !!!unit testing !!!
@@ -422,8 +423,8 @@ class FTextIter(object):
 	def __iter__(self):
 		with smart_open.smart_open(self.file_path, 'r', encoding='utf-8') as fin:
 			for line in fin:
-				line = preprocess_string(line)
-				yield list(line)
+				# line = preprocess_string(line)
+				yield list(tokenize(line))
 
 
 class OmniscienceReader(object):
@@ -440,40 +441,40 @@ class OmniscienceReader(object):
 		self.preprocess()
 
 	def preprocess(self):
-		self.om_df = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
-		self.om_df = self.om_df.dropna()
+		temp = pd.read_csv(self.file_path, sep='\t', encoding='utf-8')
+		temp = temp.dropna()
 
-		self.om_df = self.om_df.rename(index=str, columns={"conceptid": "omniscience_label_ids", "label": "omniscience_labels"})
-		self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: ast.literal_eval(x) )
-		self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: ast.literal_eval(x) )
-		self.om_df["category"] = self.om_df["file_id"].apply(lambda x: x.split(":")[0])
-		self.om_df["doc_id"] = 0
+		temp = temp.rename(index=str, columns={"conceptid": "omniscience_label_ids", "label": "omniscience_labels"})
+		# temp["omniscience_label_ids"] = temp["omniscience_label_ids"].apply(lambda x: ast.literal_eval(x) )
+		# temp["omniscience_labels"] = temp["omniscience_labels"].apply(lambda x: ast.literal_eval(x) )
+		temp["omniscience_labels"] = temp["omniscience_labels"].apply(lambda x: x.lower().replace(" ", "-") )
+		temp["category"] = temp["file_id"].apply(lambda x: x.split(":")[0])
+		temp["doc_id"] = 0
 		
-		self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: [item.replace(" ","-") for item in x])
-		self.om_df["omniscience_labels"] = self.om_df["omniscience_labels"].apply(lambda x: tuple(set(x)))
-		self.om_df["omniscience_label_ids"] = self.om_df["omniscience_label_ids"].apply(lambda x: tuple(set(x)))
+		# temp["omniscience_labels"] = temp["omniscience_labels"].apply(lambda x: tuple(set(x)))
+		# temp["omniscience_label_ids"] = temp["omniscience_label_ids"].apply(lambda x: tuple(set(x)))
 
-		for i in tqdm(self.om_df.index):
-			self.om_df.at[i, "doc_id"] = i
-			if self.om_df.at[i, "category"] == "EVISE.PII":
-				self.om_df.at[i, "omniscience_label_ids"] = list(map(int, self.om_df.at[i, "omniscience_label_ids"][0]))
-		
-		self.om_df = self.om_df.dropna()
+		for i in tqdm(temp.index):
+			temp.at[i, "doc_id"] = i
+			# if temp.at[i, "category"] == "EVISE.PII":
+				# temp.at[i, "omniscience_label_ids"] = list(map(int, temp.at[i, "omniscience_label_ids"][0]))
+		temp = temp.dropna()
+		self.om_df = temp[["omniscience_labels", "omniscience_label_ids", "abstract", "category", "used_as", "doc_id"]]
 		return self.om_df
-
 
 	def get_text(self, df):
 	
-		name = df.iloc[0]["category"]	
+		name = "oms-all"
 		fname = "{}_raw.txt".format(name)
 		
-		file = open(fname, "wb+")
+		if not os.path.isfile(fname):
+			file = open(fname, "wb+")
 
-		for i in tqdm(df.index):
-			str_each_line = df.at[i, "abstract"] + '\n'
-			file.write(str_each_line.encode('utf-8'))
+			for i in tqdm(df.index):
+				str_each_line = df.at[i, "abstract"] + '\n'
+				file.write(str_each_line.encode('utf-8'))
 
-		file.close()
+			file.close()
 		
 		return name, fname
 
@@ -483,7 +484,7 @@ class OmniscienceReader(object):
 		filename = "{}/{}.model".format(prefix, name)
 
 		if not os.path.isfile(filename):
-			moo = FastText(size=300, window=3, min_count=1) # hs=0, negative=0, size=300
+			moo = FastText(size=50, window=3, min_count=1) # hs=0, negative=0, size=300
 			moo.build_vocab(sentences=FTextIter(fname))
 			total_examples = moo.corpus_count
 			moo.train(sentences=FTextIter(fname), total_examples=total_examples, epochs=5)
@@ -497,42 +498,110 @@ class OmniscienceReader(object):
 	def gen_doc2vec(self, prefix):
 		'''
 		prefix: os file path to pickle file/saved models
-		'''
-		frames = "{}/frames.pkl".format(prefix)
+		'''		
+		logging.info("Generating document vectors...")
+		self.om_df = self.om_df.dropna()
+		self.om_df["vec"] = np.nan
+		name, fname = self.get_text(self.om_df)
+		model = self.fasttext_generator(prefix, name, fname)
+
+		fe, ex = os.path.splitext(fname)
+		ff = "{}/{}.csv".format(prefix, fe)
 		
-		if not os.path.isfile(frames):
-			logging.info("Generating document vectors...")
-			grouped = self.om_df.groupby('category')
-			gkeys = list(grouped.groups.keys())
-			group_dfs = [grouped.get_group(tag) for tag in gkeys]
-			for df in group_dfs:
-				name, fname = self.get_text(df)
-				model = self.fasttext_generator(prefix, name, fname)
-				
-				temp_col = []
-				for sent in tqdm(FTextIter(fname)):
-					vec = 0.0
-					for word in sent:
-						vec += model.wv[word] 
-					temp_col.append(np.array(vec)/len(sent))
-				df["vec"] = temp_col
-			with open(frames, "wb") as f:
-				pickle.dump(group_dfs, f)
+		if not os.path.isfile(ff):
+
+			i = 0
+			temp_col=[]
+			for sent in tqdm(FTextIter(fname)):
+				vec = 0.0
+				for word in sent:
+					vec+=model.wv[word] 
+				p = len(sent)**0.5
+				# temp_col.append(np.array(np.array(vec)/p))
+				self.om_df["vec"][i] = np.array(np.array(vec)/p)
+				print(type(self.om_df["vec"][i]))
+				break
+			self.om_df.to_csv(ff, sep='\t', encoding='utf-8', index=False)
+
 		else:
 			logging.info("Loading exisiting model... ")
-			with open(frames, "rb") as f:
-				group_dfs = pickle.load(f)
+			self.om_df = pd.read_csv(ff, sep='\t', encoding='utf-8')
 
-		res = pd.concat(group_dfs)
-		result = res.sort_index(0)
+
+		return self.om_df
+
+
+class SWIKIReader(object):
+	"""
+	file path for dataframe which has columns: label, preprocessed text
+	"""
+	def __init__(self, df_path):
+		super(SWIKIReader, self).__init__()
+		self.df_path = df_path
+		self.df = pd.read_csv(self.df_path)
+
+
+	def get_text(self):
+	
+		fe, ex = os.path.splitext(self.df_path)
+		fname = "{}_raw.txt".format(fe)
 		
-		new_df = result
+		file = open(fname, "w+")
+
+		try:
+			for i in tqdm(self.df.index):
+				str_each_line = self.df.at[i, "doc"] + '\n'
+				file.write(str_each_line)
+		except:
+			print(i)
+		file.close()
 		
-		del result, res
+		return fname
 
-		return new_df
+	def fasttext_gen(self):
 
+		# fe, ex = os.path.splitext(self.df_path)
+		# fe = fe.replace("swiki-all", "")
+		self.df = self.df.dropna()
+		filename = "C:/Users/harshasivajit/Documents/Starspace/data/swiki/text/swiki.model"
+
+		if not os.path.isfile(filename):
+			fname = self.get_text()
+			print("fastexting...")
+			moo = FastText(size=50, window=3, min_count=1) # hs=0, negative=0, size=300
+			moo.build_vocab(sentences=FTextIter(fname))
+			total_examples = moo.corpus_count
+			moo.train(sentences=FTextIter(fname), total_examples=total_examples, epochs=5)
+			moo.save(filename)
+		else:
+			moo = FastText.load(filename)
+
+		return moo
+
+	def gen_doc_vec(self):
+
+		fe, ex = os.path.splitext(self.df_path)
+		new_f = "{}_vec.csv".format(fe)
+		model = self.fasttext_gen()
+
+		if not os.path.isfile(new_f):
+			temp_col = []
+			for idx in tqdm(self.df.index):
+				vec = 0.0
+				count = 0
+				sentence = self.df.at[idx, "doc"].split(' ')
+				for word in sentence:
+					vec+=model.wv[word]
+					count+=1
+				p = count**0.5
+				temp_col.append(np.array(np.array(vec)/p))
+			self.df["vec"] = temp_col
+			self.df.to_csv(new_f, index=False)
+		else:
+			self.df = pd.read_csv(new_f)
 
 if __name__ == '__main__':
-	o = OmniscienceReader("C:/Users/harshasivajit/Documents/master-ai/rr13/OmniScience/original/ArXiv_BMED_Evise_title_abstract_os.2018-07-11.tsv")
-	new_df = o.gen_doc2vec("C:/Users/harshasivajit/Documents/master-ai/rr13/OmniScience/Fasttext")
+	# o = OmniscienceReader("C:/Users/harshasivajit/Documents/master-ai/rr13/OmniScience/original/ArXiv_BMED_Evise_title_abstract_os.2018-07-11.tsv")
+	# new_df = o.gen_doc2vec("C:/Users/harshasivajit/Documents/master-ai/rr13/OmniScience/Fasttext")
+	s = SWIKIReader("C:/Users/harshasivajit/Documents/Starspace/data/swiki/text/swiki-all.csv")
+	s.gen_doc_vec()

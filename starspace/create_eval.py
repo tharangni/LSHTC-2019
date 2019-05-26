@@ -178,8 +178,8 @@ if __name__ == '__main__':
 
     dict_of_items = {
     # "d64h" : "C:/Users/harshasivajit/Documents/Starspace/data/oms/pred/oms-d128v-h-pred.txt",
-    "d128-init-h" : "C:/Users/harshasivajit/Documents/Starspace/data/oms/pred/oms-d128-init-htc-pred.txt",
-    "d128-init-hless" : "C:/Users/harshasivajit/Documents/Starspace/data/oms/pred/oms-d128-init-hless-pred.txt",
+    "d128-ft-init-h" : "C:/Users/harshasivajit/Documents/Starspace/data/oms/pred/oms-d128-ft-init-htc-pred.txt",
+    "d128-ft-init-hless" : "C:/Users/harshasivajit/Documents/Starspace/data/oms/pred/oms-d128-ft-init-hless-pred.txt",
     
     }
 

@@ -83,14 +83,8 @@ class EntityProcessor(object):
     def treeConverter(self):
 
         # getting root
-        in_degree = nx.in_degree_centrality(self.Graph)
-
-        root = []
-
-        min_v = min(in_degree.values())
-        for k, v in in_degree.items():
-            if v == min_v:
-                root.append(k)
+        root = [n for n in self.Graph.nodes() if len(list(self.Graph.predecessors(n)))==0][0]
+        
         self.root = root
         
         is_treee = nx.is_tree(self.Graph)
@@ -172,8 +166,8 @@ class EntityProcessor(object):
                     child = str(split_line[1])
 
                 # parent_of = "parent-of \t __label__{} \t __label__A{}\n".format(parent, child)
-                parent_of = "__label__{} , __label__{}\n".format(parent, child)
-                child_of = "__label__{} , __label__{}\n".format(child, parent)
+                parent_of = "__label__{} __label__{}\n".format(parent, child)
+                child_of = "__label__{} __label__{}\n".format(child, parent)
                 fin.write(parent_of)
                 fin2.write(child_of)
                 
@@ -273,13 +267,13 @@ if __name__=="__main__":
     # T = EntityProcessor(path, '#')
     # T.fasttextConverter()
 
-    path = os.path.relpath(path="../OmniScience/original/os_tree_cat_hier.txt")
-    T = EntityProcessor(path, ' ')
-    T.fasttextConverter()
-
-    # path = os.path.relpath(path="../../../Starspace/data/swiki/cat_hier.txt")
+    # path = os.path.relpath(path="../OmniScience/original/os_tree_cat_hier.txt")
     # T = EntityProcessor(path, ' ')
     # T.fasttextConverter()
+
+    path = os.path.relpath(path="../../../Starspace/data/swiki/cat_hier.txt")
+    T = EntityProcessor(path, ' ')
+    T.fasttextConverter()
     # print(T.H.draw_graph())
 
 # notes to see if it actually works on datasets:

@@ -1,4 +1,5 @@
 import os
+import ast
 import random
 import logging
 import numpy as np
@@ -89,12 +90,12 @@ def adding_hierarchy(filename, cat_hier_path, mode):
 def create_hier_dict(filename):
     hdict = {}
 
-    with open(filename, "r") as fmain:
+    with open(filename, "rb") as fmain:
         reader = fmain.readlines()
 
     for i, line in enumerate(reader):
-        # line = line.decode('utf-8')     
-        split_ = line.split(" ")
+        line = line.decode('utf-8')     
+        split_ = line.split("#")
         child = split_[0]
         parent = split_[1].replace('\n', '')
         if child not in hdict:
@@ -179,6 +180,7 @@ def swiki_converter(filename):
     logging.info("--Beginning conversion for swiki--")
     fe, ex = os.path.splitext(filename)
     new_f = "{}_level1{}".format(fe, ex)
+    new_h = "{}_singleL{}".format(fe, ex)
     csv_f = "{}_docs.csv".format(fe)
     true_preds = "../../../Starspace/data/swiki/text/smallGS"
 
@@ -225,60 +227,69 @@ def swiki_converter(filename):
             # fmt_str = " ".join(fmt)
             content.append(fmt)                 
             
-            # if len(labels[-1]) > 0:
-            #   for k in labels[-1]:
-            #       long_labelz.append(k)
-            #       long_docs.append(content[-1])
+            if len(labels[-1]) > 0:
+              for k in labels[-1]:
+                  long_labelz.append(k)
+                  long_docs.append(content[-1])
 
-        # if len(fmt) > 5:
-        #   fmt = fmt.lower()
-        #   content.append(fmt)                 
 
-    # del labels
-    # del doc_no
 
-    print(len(labels))
-    print(len(content))
+    # print(len(long_labels))
+    # print(len(content))
+    # print(len(long_labelz))
+    # print(len(long_docs))
 
 
 
     g = pd.DataFrame(columns = ["label", "doc"])
-    g["label"] =  labels #long_labels #
+    # h = pd.DataFrame(columns = ["label", "doc"])
+
+    g["label"] =   long_labels #labels
     g["doc"] = content #long_docs    
-    # g["label"] = g["label"].apply(lambda x: [int(item) for item in x])    
     g["label"] = g["label"].apply(lambda x: tagging_adder(x))    
     
-    # tag_labels = list(g["label"])
-    # w_ = open(cat_path, "w+")
+    # h["label"] = long_labelz
+    # h["doc"] = long_docs
+    # h["label"] = h["label"].apply(lambda x: int(x))
+    # h["label"] = h["label"].apply(lambda x: tagging_adder(x))
+    
+    tag_labels = list(g["label"])
+    w_ = open(cat_path, "w+")
 
-    # checker = []
-    # for item in tqdm(tag_labels):
-    #     for j in item:
-    #         if j not in checker:
-    #             checker.append(j)
-    #             string = "{} , {}".format(j, hdict[j])
-    #             w_.write(string)
+    checker = []
+    for item in tqdm(tag_labels):
+        for j in item:
+            if j not in checker:
+                checker.append(j)
+                string = "{} {}".format(j, hdict[j])
+                w_.write(string)
 
-    # w_.close()
-    # print(len(checker))
-    # del checker
+    w_.close()
+    print(len(checker))
+    del checker
 
-    g.to_csv(csv_f, header=True, index=False)
+    # g.to_csv(csv_f, header=True, index=False)
     g.to_csv(new_f, header=False, index=False, sep='$', quotechar=' ')
+
+    # h.to_csv(csv_f, header=True, index=False)
+    # h.to_csv(new_h, header=False, index=False, sep='$', quotechar=' ')
     # g.to_csv(new_f, header=False, index=False, sep=',', quotechar=' ')
 
     # temp_df = g
     # temp_df.to_csv(csv_f, index=False)
     
     new_file = clean_up_swiki_test(new_f)
-    # new_file = clean_up(new_f)
+    # new_file2 = clean_up_swiki_test(new_h)
+
     logging.info("--Finished converting swiki to fasttext format--")
     
     logging.info("--Shuffling lines in the file--")
     shuffle_lines(new_file, "default")
+    # shuffle_lines(new_file2, "default")
     logging.info("--Finished shuffling lines--")
     if "test" not in new_file:
         adding_hierarchy(new_file, cat_path, "default")
+        # adding_hierarchy(new_file2, cat_hier_path, "default")
         logging.info("--Added hierarchy data--")
 
 
@@ -402,13 +413,13 @@ def oms_main(main_path):
     print(training.shape)
     print(validation.shape)
 
-    stages = {'train': training, 'valid': validation}
+    stages = {'train': training, }#'valid': validation}
 
     for split, stage_df in stages.items():
         oms_converter(stage_df, main_path, split)
 
 
 if __name__ == '__main__':
-    swiki_converter("../../../Starspace/data/swiki/text/swiki-train.txt")
+    # swiki_converter("../../../Starspace/data/swiki/text/swiki-train.txt")
     # swiki_converter("../../../Starspace/data/swiki/text/swiki-test.txt")
-    # oms_main("../../../Starspace/data/oms/text/jan_oms.tsv")
+    oms_main("../../../Starspace/data/oms/text/jan_oms.tsv")

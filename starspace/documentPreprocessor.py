@@ -4,6 +4,9 @@ import random
 import logging
 import numpy as np
 
+from sklearn.model_selection import train_test_split
+
+from gensim.parsing.porter import PorterStemmer
 from gensim.parsing.preprocessing import preprocess_string
 
 from collections import OrderedDict
@@ -90,12 +93,12 @@ def adding_hierarchy(filename, cat_hier_path, mode):
 def create_hier_dict(filename):
     hdict = {}
 
-    with open(filename, "rb") as fmain:
+    with open(filename, "r") as fmain:
         reader = fmain.readlines()
 
     for i, line in enumerate(reader):
-        line = line.decode('utf-8')     
-        split_ = line.split("#")
+        # line = line.decode('utf-8')     
+        split_ = line.split("\t")
         child = split_[0]
         parent = split_[1].replace('\n', '')
         if child not in hdict:
@@ -126,11 +129,13 @@ def swiki_replacer(lines):
     return lines
 
 def document_preprocess(text):
+    p = PorterStemmer()
     first = text.encode('ascii', 'ignore').decode('utf-8').lower()
     second = preprocessing.remove_stopwords(first)
     third = preprocessing.strip_punctuation(second)
     fourth = preprocessing.strip_short(preprocessing.strip_numeric(third))
-    return fourth
+    fifth = p.stem(fourth)
+    return fifth
 
 def clean_up_swiki_test(filename):
 
@@ -152,7 +157,7 @@ def clean_up_swiki_test(filename):
             labs = labs.replace("[", "").replace("'", "").replace("]", "").replace(",", "")
             the_rest = umm_split[1:]
             str_wut = ''.join(the_rest)
-            wmain.write("{}{}\n".format(labs, str_wut))
+            wmain.write("{} {}\n".format(labs, str_wut))
     wmain.close()
     
     os.remove(filename)
@@ -234,24 +239,24 @@ def swiki_converter(filename):
 
 
 
-    # print(len(long_labels))
-    # print(len(content))
+    print(len(labels))
+    print(len(content))
     # print(len(long_labelz))
     # print(len(long_docs))
 
 
 
     g = pd.DataFrame(columns = ["label", "doc"])
-    # h = pd.DataFrame(columns = ["label", "doc"])
+    h = pd.DataFrame(columns = ["label", "doc"])
 
-    g["label"] =   long_labels #labels
+    g["label"] =  labels #long_labels
     g["doc"] = content #long_docs    
     g["label"] = g["label"].apply(lambda x: tagging_adder(x))    
     
-    # h["label"] = long_labelz
-    # h["doc"] = long_docs
-    # h["label"] = h["label"].apply(lambda x: int(x))
-    # h["label"] = h["label"].apply(lambda x: tagging_adder(x))
+    h["label"] = long_labelz
+    h["doc"] = long_docs
+    h["label"] = h["label"].apply(lambda x: int(x))
+    h["label"] = h["label"].apply(lambda x: tagging_adder(x))
     
     tag_labels = list(g["label"])
     w_ = open(cat_path, "w+")
@@ -272,24 +277,24 @@ def swiki_converter(filename):
     g.to_csv(new_f, header=False, index=False, sep='$', quotechar=' ')
 
     # h.to_csv(csv_f, header=True, index=False)
-    # h.to_csv(new_h, header=False, index=False, sep='$', quotechar=' ')
+    h.to_csv(new_h, header=False, index=False, sep='$', quotechar=' ')
     # g.to_csv(new_f, header=False, index=False, sep=',', quotechar=' ')
 
     # temp_df = g
     # temp_df.to_csv(csv_f, index=False)
     
     new_file = clean_up_swiki_test(new_f)
-    # new_file2 = clean_up_swiki_test(new_h)
+    new_file2 = clean_up_swiki_test(new_h)
 
     logging.info("--Finished converting swiki to fasttext format--")
     
     logging.info("--Shuffling lines in the file--")
     shuffle_lines(new_file, "default")
-    # shuffle_lines(new_file2, "default")
+    shuffle_lines(new_file2, "default")
     logging.info("--Finished shuffling lines--")
     if "test" not in new_file:
         adding_hierarchy(new_file, cat_path, "default")
-        # adding_hierarchy(new_file2, cat_hier_path, "default")
+        adding_hierarchy(new_file2, cat_hier_path, "default")
         logging.info("--Added hierarchy data--")
 
 
@@ -323,8 +328,7 @@ def oms_converter(df, main_path, split_name):
     new_df = pd.DataFrame(columns=["label", "document"])
     new_df["document"] = df["doc"]
     # new_df["document"] = new_df["document"].apply(lambda x: oms_replacer(x))
-    new_df["label"] = df["labels"]
-    new_df["label"] = new_df["label"].apply(lambda x: oms_tagger(x))
+    new_df["label"] = df["labels"].apply(lambda x: oms_tagger(x))
         
     temp_dict = new_df.to_dict(orient='list')
     temp = list(temp_dict.values())
@@ -341,8 +345,8 @@ def oms_converter(df, main_path, split_name):
     logging.info("--Beginning to convert {} mode to fasttext format--".format(split_name))
 
     # regular saving
-    wmain = open(save_file_as, "wb+")
-    rmain = open(save_rel_as, "wb+")
+    wmain = open(save_file_as, "w+")
+    rmain = open(save_rel_as, "w+")
     checker = []
 
     for lset in all_labels:
@@ -363,10 +367,10 @@ def oms_converter(df, main_path, split_name):
         for j in item:
             string += j + " "
             line_one = "{} {}\n".format(j, all_content[i])
-            rmain.write(line_one.encode("utf-8"))
+            rmain.write(line_one)
         line = "{} {}\n".format(string[:-1], all_content[i])
 
-        wmain.write(line.encode("utf-8"))
+        wmain.write(line)
     rmain.close()
     wmain.close()
     
@@ -377,7 +381,7 @@ def oms_converter(df, main_path, split_name):
 
     #2. selecting only those parent nodes which have samples/instances
     # for h-data => # labels w/o h == # labels w/ h
-    cmain = open(cat_path, "wb+")
+    cmain = open(cat_path, "w+")
     temp_ = {}
     for item in checker:
         temp_[item] = hdict[item]
@@ -385,7 +389,7 @@ def oms_converter(df, main_path, split_name):
     for k, v in tqdm(temp_.items()):
         if v in checker:
             c_string = "{} {}\n".format(k, v)
-            cmain.write(c_string.encode("utf-8"))
+            cmain.write(c_string)
         else:
             pass
 
@@ -393,10 +397,10 @@ def oms_converter(df, main_path, split_name):
     
 
     # shuffling
-    shuffle_lines(save_file_as, "binary")
+    shuffle_lines(save_file_as, "default")
     if split_name == "train":
-        adding_hierarchy(save_file_as, cat_path, "binary")
-        adding_hierarchy(save_rel_as, cat_path, "binary")
+        adding_hierarchy(save_file_as, cat_path, "default")
+        adding_hierarchy(save_rel_as, cat_path, "default")
         logging.info("--Added hierarchy data--")
     
     logging.info("--Finished converting {} mode to fasttext--".format(split_name))
@@ -409,17 +413,19 @@ def oms_main(main_path):
     groups = O.om_df.groupby("used_as")
 
     training = groups.get_group("training")
-    validation = groups.get_group("validation")
+    test = groups.get_group("validation")
     print(training.shape)
-    print(validation.shape)
+    print(test.shape)
 
-    stages = {'train': training, }#'valid': validation}
+    train, validation = train_test_split(training, test_size=0.2)
+
+    stages = {'train': train, 'valid': validation, 'test': test}
 
     for split, stage_df in stages.items():
         oms_converter(stage_df, main_path, split)
 
 
 if __name__ == '__main__':
-    # swiki_converter("../../../Starspace/data/swiki/text/swiki-train.txt")
+    swiki_converter("../../../Starspace/data/swiki/text/swiki-train.txt")
     # swiki_converter("../../../Starspace/data/swiki/text/swiki-test.txt")
-    oms_main("../../../Starspace/data/oms/text/jan_oms.tsv")
+    # oms_main("../../../Starspace/data/oms/text/oms-prep.tsv")

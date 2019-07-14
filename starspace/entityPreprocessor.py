@@ -93,7 +93,7 @@ class EntityProcessor(object):
         if not is_arb:
             logging.info("Arborescence is not possible due to in-bound and out-bound edges. Therefore converting to tree using BFS.")
             self.DAG2Tree()
-        elif not is_treee:
+        else:
             logging.info("Converting dag to tree")
             arb_graph = nx.minimum_spanning_arborescence(self.Graph)
             if nx.is_tree(arb_graph):
@@ -116,7 +116,7 @@ class EntityProcessor(object):
         new_edges = []
         queue = [] 
 
-        s = self.root[0]
+        s = self.root
         queue.append(s) 
         visited[s]+=1
 
@@ -166,8 +166,8 @@ class EntityProcessor(object):
                     child = str(split_line[1])
 
                 # parent_of = "parent-of \t __label__{} \t __label__A{}\n".format(parent, child)
-                parent_of = "__label__{} __label__{}\n".format(parent, child)
-                child_of = "__label__{} __label__{}\n".format(child, parent)
+                parent_of = "__label__{}\t__label__{}\n".format(parent, child)
+                child_of = "__label__{}\t__label__{}\n".format(child, parent)
                 fin.write(parent_of)
                 fin2.write(child_of)
                 
@@ -205,8 +205,8 @@ class EntityProcessor(object):
                         child = str(split_line[1])
 
                 # parent_of = "parent-of \t __label__{} \t __label__{}\n".format(parent, child)
-                parent_of = "__label__{} , __label__{}\n".format(parent, child)
-                child_of = "__label__{}#__label__{}\n".format(child, parent)
+                parent_of = "__label__{}\t__label__{}\n".format(parent, child)
+                child_of = "__label__{}\t__label__{}\n".format(child, parent)
                 fin.write(parent_of.encode('utf-8'))
                 fin2.write(child_of.encode('utf-8'))
                 # child_of = "child-of \t __label__{} \t __label__{}\n".format(child, parent)
@@ -255,18 +255,6 @@ class EntityProcessor(object):
 
 
 if __name__=="__main__":
-    # path = "../../../Starspace/data/food/cat_hier.txt"
-    # T = EntityProcessor(path, '#')
-    # T.fasttextConverter()
-
-    # path = os.path.relpath(path="../../../Starspace/data/oms/cat_hier.txt")
-    # T = EntityProcessor(path, '#')
-    # T.fasttextConverter()
-
-    # path = os.path.relpath(path="../../../Starspace/data/oms/small_txt.txt")
-    # T = EntityProcessor(path, '#')
-    # T.fasttextConverter()
-
     # path = os.path.relpath(path="../OmniScience/original/os_tree_cat_hier.txt")
     # T = EntityProcessor(path, ' ')
     # T.fasttextConverter()

@@ -37,13 +37,13 @@ class LogisticCost(LogisticBase):
         
     def _function_value(self, W, X, Y):
         '''Compute objective function value'''
-        regularizer = np.linalg.norm(W-self.W_prev)**2
-        # regularizer = np.linalg.norm(W)**2
+        regularizer = np.linalg.norm(W)**2
+#         regularizer = np.linalg.norm(W-self.W_prev)**2
         loss_vector = self._log_loss(X, Y, W)
         np.multiply(self.cost_vector, loss_vector, loss_vector)
         loss = np.sum(loss_vector)
         value = loss + self.rho*regularizer
-
+        
         return value
 
 
@@ -54,9 +54,10 @@ class LogisticCost(LogisticBase):
         grad_loss = -Y/(1+np.exp(Y*(X.dot(W))))
         grad_loss = np.multiply(grad_loss, self.cost_vector)
         grad_loss = X.T.dot(grad_loss) # TODO: this is CSR improper multiplication
-        # gradient = grad_loss 
-        # gradient = grad_loss + 2*self.rho*W
-        gradient = grad_loss + self.rho*2*(W-self.W_prev)
+#         gradient = grad_loss 
+        gradient = grad_loss + 2*self.rho*W
+#         gradient = grad_loss + self.rho*2*(W-self.W_prev)
+
         if self.solver == 'lbfgs':
             W.shape = (X.shape[1]*Y.shape[1])
             self.W_prev.shape = (X.shape[1]*Y.shape[1])

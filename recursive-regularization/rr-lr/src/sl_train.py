@@ -93,6 +93,7 @@ def main(args):
     others = list(set(set_train).difference(leaves))
     
     top_level, internal_leaves = get_level_nodes(graph, others)
+    top_level = [top_level]
     
     print("Root: {}\nInternal nodes: {}\nLeaves: {}".format(top_level, len(others), len(leaves)))
     
@@ -144,22 +145,22 @@ def main(args):
                     print(node, "has no samples (X)")
 
     
-#     print("root")
-#     for root in top_level:
-#         try:
-#             model_save_path = '{}/model_h_{}.p'.format(args.model_dir, root)
+    print("root")
+    for root in top_level:
+        try:
+            model_save_path = '{}/model_h_{}.p'.format(args.model_dir, root)
 
-#             parent = list(graph.predecessors(root))
-#             children = list(graph.successors(root))
+            parent = list(graph.predecessors(root))
+            children = list(graph.successors(root))
 
-#             w_n = w_dict[root]
+            w_n = w_dict[root]
 
-#             mod_cn, sum_c, sum_pi = non_leaf_update(parent, children, w_dict, features)
+            mod_cn, sum_c, sum_pi = non_leaf_update(parent, children, w_dict, features)
 
-#             updated_Wn = train_and_output_model(X_train, labels_train, root, graph,
-#                 args.cost_type, args.imbalance, args.rho, model_save_path,
-#                 sum_pi, w_n, sum_c, mod_cn)
+            updated_Wn = train_and_output_model(X_train, labels_train, root, graph,
+                args.cost_type, args.imbalance, args.rho, model_save_path,
+                sum_pi, w_n, sum_c, mod_cn)
 
-#             w_dict[root] = updated_Wn
-#         except:
-#             print(root, "has no samples (X)")
+            w_dict[root] = updated_Wn
+        except:
+            print(root, "has no samples (X)")

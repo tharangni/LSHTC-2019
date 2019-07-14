@@ -33,7 +33,7 @@ def get_leaf_nodes(graph_path):
 
     # graph = nx.read_edgelist(graph_path, create_using=nx.DiGraph(),nodetype=int)
     leaf_nodes = np.array([ n for n in graph.nodes()  if len(list(graph.successors(n))) == 0],dtype=int)
-    leaf_nodes = np.array(graph.nodes())
+    # leaf_nodes = np.array(graph.nodes())
     return leaf_nodes
 
 def pred_multiclass(X_test, model_dir, leaf_nodes):

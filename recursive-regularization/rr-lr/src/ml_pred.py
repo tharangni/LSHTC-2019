@@ -12,14 +12,14 @@ Databases, 2015
 
 import numpy as np
 import networkx as nx
-from sklearn.metrics import f1_score, classification_report
+from sklearn.metrics import f1_score, classification_report, precision_score, recall_score
 from dataset_util import *
 from tqdm import tqdm
 import scipy.sparse
 from sklearn.preprocessing import MultiLabelBinarizer
 import warnings
 
-def pred_multilabel(X_test, model_dir, target_names):
+def pred_multilabel(args, X_test, model_dir, target_names):
     '''
     Predict class labels for test set for multi-label classification.
 
@@ -34,11 +34,17 @@ def pred_multilabel(X_test, model_dir, target_names):
 
     '''
 
+    graph = nx.read_graphml(args.hierarchy, node_type=int)
+    leaf_nodes = np.array([ n for n in graph.nodes()  if len(list(graph.successors(n))) == 0],dtype=int)
+
     num_examples = X_test.shape[0]
     y_pred = scipy.sparse.dok_matrix((num_examples, len(target_names)))
-    target_names = target_names.astype(int)
-
-    for idx, node in enumerate(target_names):
+#     no = [249523202, 210636294]
+#     targets = set(target_names).difference(no)
+    
+    
+    for idx, node in enumerate(tqdm(target_names)):
+        
         model_save_path = '{}/model_h_{}.p'.format(
             model_dir, node)
         try:
@@ -80,7 +86,7 @@ def main(args):
     lbin = MultiLabelBinarizer(sparse_output=True)
     y_test_mat = lbin.fit_transform(y_test)
 
-    y_pred_mat = pred_multilabel(X_test, args.model_dir, lbin.classes_)
+    y_pred_mat = pred_multilabel(args, X_test, args.model_dir, lbin.classes_)
     y_pred = lbin.inverse_transform(y_pred_mat)
     write_labels(args.pred_path, y_pred)
 
@@ -91,6 +97,10 @@ def main(args):
         y_test_mat = y_test_mat.astype('bool').toarray()
         micro_f1 = f1_score(y_test_mat, y_pred_mat, average='micro')
         macro_f1 = f1_score(y_test_mat, y_pred_mat, average='macro')
+        precision = precision_score(y_test_mat, y_pred_mat, average='micro')
+        recall = recall_score(y_test_mat, y_pred_mat, average='micro')
         print("Micro-F1 = {:.5f}".format(micro_f1))
         print("Macro-F1 = {:.5f}".format(macro_f1))
+        print("Precision = {:.5f}".format(precision))
+        print("Recall = {:.5f}".format(recall))
         # print(classification_report(y_test_mat, y_pred_mat))

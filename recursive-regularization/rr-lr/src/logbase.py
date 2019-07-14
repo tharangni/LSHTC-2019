@@ -7,7 +7,7 @@ import pandas as pd
 import warnings
 from sklearn import preprocessing
 
-np.random.seed(12345678)
+# np.random.seed(12345678)
 
 class LogisticBase(object):
 
@@ -117,15 +117,17 @@ class LogisticBase(object):
         num_examples, num_features = X.shape
 
         # D = self._initialize_variables((num_features,num_tasks))
+        
         self.W = self.W.flatten()
+        temp = self.W
         self.W_prev = self.W_prev.flatten()
 
         self.W, fvalue, d  = scipy.optimize.fmin_l_bfgs_b(
                     self._function_value,
-                    self.W,
+                    temp,
                     fprime=self._gradient,
                     args = (X, Y),
-                    maxiter=50)
+                    maxiter=150)
         
         self.W.shape = (num_features, num_tasks)
         self.W_prev.shape = (num_features, num_tasks)
@@ -236,8 +238,8 @@ class LogisticBase(object):
 
         if self.fit_intercept:
             unit_col = self.intercept_scaling*np.ones((X.shape[0], 1))
-        newX = (scipy.sparse.hstack((unit_col, X))).tocsr()
-#         newX = np.hstack((unit_col, X))
+#         newX = (scipy.sparse.hstack((unit_col, X))).tocsr()
+        newX = np.hstack((unit_col, X))
         return newX
 
     

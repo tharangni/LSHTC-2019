@@ -9,7 +9,7 @@ import os.path
 from scipy.sparse import csr_matrix
 mem = Memory("./mycache")
 
-np.random.seed(12345678)
+# np.random.seed(12345678)
 
 def mkdir_if_not_exists(dir_path):
     try:
@@ -93,9 +93,11 @@ def dump_svmlight_file_multilabel(X, y, file_path):
 # @mem.cache
 def read_embeddings(data_path, label_path):
     '''Read data (npy) saved as fasttext embeddings'''
-    X_ = np.load(data_path)
-    X = csr_matrix(X_.item())
-    labels = np.load(label_path)
+    X_ = np.load(data_path, allow_pickle=True)
+#     X = csr_matrix(X_.item())
+#     X = csr_matrix(X_)
+    X = X_
+    labels = np.load(label_path, allow_pickle=True)
     labels = labels.tolist()
     del X_
 

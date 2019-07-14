@@ -9,7 +9,7 @@ import networkx as nx
 import pandas as pd
 import warnings
 
-np.random.seed(12345678)
+np.random.seed(4453)
 
 def get_root(graph):
 
@@ -65,9 +65,9 @@ def non_leaf_update(parents, children, w_dict, features):
             
         for c in children:
             if isinstance(w_dict[c], np.ndarray):
-                # print(w_dict[c].shape)
-                sum_c+=w_dict[c]
                 sum_c = sum_c.squeeze()
+                w_dict[c] = w_dict[c].squeeze()
+                sum_c+=w_dict[c]
             else:
                 sum_c+=0
                 
@@ -75,8 +75,9 @@ def non_leaf_update(parents, children, w_dict, features):
     else:
         for c in children:
             if isinstance(w_dict[c], np.ndarray):
-                sum_c+=w_dict[c]
                 sum_c = sum_c.squeeze()
+                w_dict[c] = w_dict[c].squeeze()
+                sum_c+=w_dict[c]
             else:
                 sum_c+=0
     

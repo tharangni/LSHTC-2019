@@ -16,7 +16,7 @@ from recursive_reg import *
 import numpy as np
 import scipy.sparse
 from tqdm import tqdm
-# from joblib import Parallel, delayed
+from joblib import Parallel, delayed
 from sklearn.preprocessing import MultiLabelBinarizer
 from logscut import LogisticScut
 from mlcost import *
@@ -25,28 +25,55 @@ from mlcost import *
 def train_and_output_model(X, y, class_labels, train_node, graph, cost_type,
     imbalance, rho, outpath, w_pi, w_n, sum_c, mod_cn):
 
-    print("Training Model {} :  ".format(train_node))
-    start = time.time()
+    
+    if not os.path.isfile(outpath):
+        print("Training Model {} :  ".format(train_node))
+        start = time.time()
 
-    cost_vector = compute_treecost_vector(train_node, class_labels, 
-        graph, cost_type=cost_type, imbalance=imbalance)
-    model = LogisticScut(rho=rho, w_n=w_n, w_pi=w_pi, 
-        children=sum_c, mod_cn=mod_cn)
-    model.fit(X, y, cost_vector)
+        cost_vector = np.ones(len(class_labels))
+        model = LogisticScut(rho=rho, w_n=w_n, w_pi=w_pi, 
+            children=sum_c, mod_cn=mod_cn)
+        model.fit(X, y, cost_vector)
 
-    # save model
-    safe_pickle_dump(model, outpath)
-    end = time.time()
-    print(" time= {:.3f} sec".format(end-start))
-
+        safe_pickle_dump(model, outpath)
+        end = time.time()
+        print(" time= {:.3f} sec".format(end-start))
+    else:
+        model = safe_pickle_load(outpath)
+        print("Loading existing model: {}".format(train_node))
+        
     updated_Wn = model.W
 
     return updated_Wn
 
+  
+def train_fn(train_node, args, label_matrix, graph, X_train, labels_train, lbin):
+    model_save_path = '{}/model_h_{}.p'.format(args.model_dir, train_node)
+    model_dict_name = 'model_{}'.format(train_node)
+    y_node = label_matrix[:, lbin.classes_ == train_node].toarray().flatten()
+
+    w_n = w_dict[train_node]
+
+    sum_c = np.zeros(2)
+
+    mod_cn = np.zeros(2)
+
+    for p in list(graph.predecessors(train_node)):
+        w_pi = w_dict[p]
+
+    updated_Wn = train_and_output_model(X_train, y_node, 
+        labels_train, train_node, graph, args.cost_type, 
+        args.imbalance, args.rho, model_save_path,
+         w_pi, w_n, sum_c, mod_cn)
+
+    w_dict[train_node] = updated_Wn
+    
 
 
 def main(args):
-
+    
+    global w_dict 
+    
     mkdir_if_not_exists(args.model_dir)
 
     if "graphml" not in args.hierarchy:
@@ -86,75 +113,19 @@ def main(args):
     top_level, internal_leaves = get_level_nodes(graph, others)
     
     top_level = [top_level]
+
+    # top_level, internal_leaves = [], []
     
-    print("Features: {}\nRoot: {}\nInternal nodes: {}\nLeaves: {}".format(features-1, top_level, len(others), len(leaves)))
+    print("Features: {}\nRoot: {}\nInternal nodes: {}\nLeaves: {}\nAll: {}".format(features-1, top_level, len(others), len(leaves), len(set_train)))
 
     
-    for train_node in tqdm(leaves):
-        try:
-            model_save_path = '{}/model_h_{}.p'.format(args.model_dir, train_node)
-            y_node = label_matrix[:, lbin.classes_ == train_node].toarray().flatten()
-            
-            w_n = w_dict[train_node]
-
-            sum_c = np.zeros(2)
-
-            mod_cn = np.zeros(2)
-
-            for p in list(graph.predecessors(train_node)):
-                w_pi = w_dict[p]
-
-            updated_Wn = train_and_output_model(X_train, y_node, 
-                labels_train, train_node, graph, args.cost_type, 
-                args.imbalance, args.rho, model_save_path,
-                 w_pi, w_n, sum_c, mod_cn)
-
-            w_dict[train_node] = updated_Wn
-
-        except:
-            print(train_node, "has no samples (X)")
+    Parallel(n_jobs=8, prefer="threads")(delayed(train_fn)(train_node, args, 
+                                                            label_matrix, graph, X_train, 
+                                                            labels_train, lbin) for train_node in tqdm(leaves))
+    
 
     print("internal level")
     
-    for level in internal_leaves:
-        for node in tqdm(level):
-            try:
-                model_save_path = '{}/model_h_{}.p'.format(args.model_dir, node)
-                y_node = label_matrix[:, lbin.classes_ == node].toarray().flatten()
-
-                
-                parent = list(graph.predecessors(node))
-                children = list(graph.successors(node))
-
-                w_n = w_dict[node]
-
-                mod_cn, sum_c, sum_pi = non_leaf_update(parent, children, w_dict, features)
-
-                updated_Wn = train_and_output_model(X_train, y_node, labels_train, node, graph, args.cost_type, 
-                    args.imbalance, args.rho, model_save_path, sum_pi, w_n, sum_c, mod_cn)
-
-                w_dict[node] = updated_Wn
-            except:
-                    print(node, "has no samples (X)")
-                    
-
-    print("top level")
-    for root in top_level:
-            try:
-                model_save_path = '{}/model_h_{}.p'.format(args.model_dir, node)
-                y_node = label_matrix[:, lbin.classes_ == node].toarray().flatten()
-                
-                parent = list(graph.predecessors(node))
-                children = list(graph.successors(node))
-
-                w_n = w_dict[node]
-
-                mod_cn, sum_c, sum_pi = non_leaf_update(parent, children, w_dict, features)
-
-                updated_Wn = train_and_output_model(X_train, y_node, labels_train, node, graph,
-                args.cost_type, args.imbalance, args.rho, model_save_path,
-                sum_pi, w_n, sum_c, mod_cn)
-
-                w_dict[node] = updated_Wn
-            except:
-                    print(node, "has no samples (X)")
+    Parallel(n_jobs=8, prefer="threads")(delayed(train_fn)(node, args, 
+                                                           label_matrix, graph, X_train, 
+                                                           labels_train, lbin) for level in tqdm(internal_leaves) for node in level)

@@ -82,8 +82,8 @@ class LogisticBase(object):
 
     def optimize_objective_non_leaf(self, X, y):
         
-        X = self.append_unit_column(X)
         Y, self.labels, num_tasks = self._check_data(y)
+        X = self.append_unit_column(X)
         num_examples, num_features = X.shape
                 
         self.W.shape = (num_features, num_tasks)
@@ -112,8 +112,8 @@ class LogisticBase(object):
     def optimize_objective_lbfgs(self, X, y):
         '''Train the model'''
 
-        X = self.append_unit_column(X)
         Y, self.labels, num_tasks = self._check_data(y)
+        X = self.append_unit_column(X)
         num_examples, num_features = X.shape
 
         # D = self._initialize_variables((num_features,num_tasks))
@@ -152,8 +152,8 @@ class LogisticBase(object):
     def optimize_objective_agm(self, X, y):
         '''Train the model'''
 
-        X = self.append_unit_column(X)
         Y, self.labels, num_tasks = self._check_data(y)
+        X = self.append_unit_column(X)
 
         inv_step_size = 1
         n_term_check = 5
@@ -238,8 +238,12 @@ class LogisticBase(object):
 
         if self.fit_intercept:
             unit_col = self.intercept_scaling*np.ones((X.shape[0], 1))
-#         newX = (scipy.sparse.hstack((unit_col, X))).tocsr()
-        newX = np.hstack((unit_col, X))
+        
+        if len(self.labels) == 2:        
+            newX = (scipy.sparse.hstack((unit_col, X))).tocsr()
+        else:
+            newX = np.hstack((unit_col, X))
+    
         return newX
 
     

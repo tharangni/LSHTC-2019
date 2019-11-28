@@ -12,13 +12,13 @@ This code works for tree hierarchy (recursive regularization part)
 ## Usage
 `cd rr-lr/`
 
-for clef dataset:
+for clef dataset (single labels):
 
 `python src/train.py -d data/clef/train.txt -t data/clef/cat_hier.txt -m output/clef/model -f 80 -r 0.5 -c lr`
 
 `python src/predict.py -m  output/clef/model -d  data/clef/test.txt -f 80 -p output/clef/pred.txt -t data/clef/cat_hier.txt`
 
-For omniscience/swiki (rename address path):
+For omniscience/swiki (rename address path, multi labels):
 
 `python src/train.py -d  data/oms/train_data.npy -t  data/oms/cat_hier_TREE_INT.graphml -m  output/oms/model -r 0.5 --multi -c lr`
 

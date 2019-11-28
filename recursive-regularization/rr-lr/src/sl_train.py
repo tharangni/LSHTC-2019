@@ -102,7 +102,7 @@ def main(args):
     print("Leaves: ")
     for train_node in tqdm(leaves):
         try:
-            model_save_path = '{}/model_h_{}.p'.format(args.model_dir, train_node)
+            model_save_path = '{}/model_h_{}.p'.format(args.model_dir, int(train_node))
             
             w_n = w_dict[train_node]
 
@@ -127,7 +127,7 @@ def main(args):
     for level in internal_leaves:
         for node in tqdm(level):
             try:
-                model_save_path = '{}/model_h_{}.p'.format(args.model_dir, node)
+                model_save_path = '{}/model_h_{}.p'.format(args.model_dir, int(node))
                 
                 parent = list(graph.predecessors(node))
                 children = list(graph.successors(node))
@@ -148,7 +148,7 @@ def main(args):
     print("root")
     for root in top_level:
         try:
-            model_save_path = '{}/model_h_{}.p'.format(args.model_dir, root)
+            model_save_path = '{}/model_h_{}.p'.format(args.model_dir, int(root))
 
             parent = list(graph.predecessors(root))
             children = list(graph.successors(root))

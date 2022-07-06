@@ -31,7 +31,7 @@ jupyter-core==4.5.0
 jupyterthemes==0.20.0
 kiwisolver==1.1.0
 lesscpy==0.13.0
-lxml==4.6.3
+lxml==4.9.1
 MarkupSafe==1.1.1
 matplotlib==3.1.1
 mistune==0.8.4
